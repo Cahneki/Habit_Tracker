@@ -1,0 +1,26 @@
+import 'package:drift/drift.dart';
+
+class Habits extends Table {
+  TextColumn get id => text()(); // e.g. uuid
+  TextColumn get name => text()();
+  IntColumn get createdAt => integer()(); // epoch ms
+  IntColumn get archivedAt => integer().nullable()(); // epoch ms
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class HabitCompletions extends Table {
+  TextColumn get id => text()(); // uuid or deterministic id
+  TextColumn get habitId => text().references(Habits, #id)();
+  IntColumn get completedAt => integer()(); // epoch ms
+  TextColumn get localDay => text()(); // YYYY-MM-DD
+
+  @override
+  Set<Column> get primaryKey => {id};
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+        {habitId, localDay}, // prevents double completion per day
+      ];
+}
