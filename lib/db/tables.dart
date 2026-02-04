@@ -5,6 +5,7 @@ class Habits extends Table {
   TextColumn get name => text()();
   IntColumn get createdAt => integer()(); // epoch ms
   IntColumn get archivedAt => integer().nullable()(); // epoch ms
+  IntColumn get scheduleMask => integer().nullable()(); // bitmask: 0=Mon .. 6=Sun
 
   @override
   Set<Column> get primaryKey => {id};

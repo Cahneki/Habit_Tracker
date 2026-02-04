@@ -48,8 +48,25 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _scheduleMaskMeta = const VerificationMeta(
+    'scheduleMask',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, name, createdAt, archivedAt];
+  late final GeneratedColumn<int> scheduleMask = GeneratedColumn<int>(
+    'schedule_mask',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    createdAt,
+    archivedAt,
+    scheduleMask,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -89,6 +106,15 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         archivedAt.isAcceptableOrUnknown(data['archived_at']!, _archivedAtMeta),
       );
     }
+    if (data.containsKey('schedule_mask')) {
+      context.handle(
+        _scheduleMaskMeta,
+        scheduleMask.isAcceptableOrUnknown(
+          data['schedule_mask']!,
+          _scheduleMaskMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -114,6 +140,10 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         DriftSqlType.int,
         data['${effectivePrefix}archived_at'],
       ),
+      scheduleMask: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}schedule_mask'],
+      ),
     );
   }
 
@@ -128,11 +158,13 @@ class Habit extends DataClass implements Insertable<Habit> {
   final String name;
   final int createdAt;
   final int? archivedAt;
+  final int? scheduleMask;
   const Habit({
     required this.id,
     required this.name,
     required this.createdAt,
     this.archivedAt,
+    this.scheduleMask,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -142,6 +174,9 @@ class Habit extends DataClass implements Insertable<Habit> {
     map['created_at'] = Variable<int>(createdAt);
     if (!nullToAbsent || archivedAt != null) {
       map['archived_at'] = Variable<int>(archivedAt);
+    }
+    if (!nullToAbsent || scheduleMask != null) {
+      map['schedule_mask'] = Variable<int>(scheduleMask);
     }
     return map;
   }
@@ -154,6 +189,9 @@ class Habit extends DataClass implements Insertable<Habit> {
       archivedAt: archivedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(archivedAt),
+      scheduleMask: scheduleMask == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scheduleMask),
     );
   }
 
@@ -167,6 +205,7 @@ class Habit extends DataClass implements Insertable<Habit> {
       name: serializer.fromJson<String>(json['name']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       archivedAt: serializer.fromJson<int?>(json['archivedAt']),
+      scheduleMask: serializer.fromJson<int?>(json['scheduleMask']),
     );
   }
   @override
@@ -177,6 +216,7 @@ class Habit extends DataClass implements Insertable<Habit> {
       'name': serializer.toJson<String>(name),
       'createdAt': serializer.toJson<int>(createdAt),
       'archivedAt': serializer.toJson<int?>(archivedAt),
+      'scheduleMask': serializer.toJson<int?>(scheduleMask),
     };
   }
 
@@ -185,11 +225,13 @@ class Habit extends DataClass implements Insertable<Habit> {
     String? name,
     int? createdAt,
     Value<int?> archivedAt = const Value.absent(),
+    Value<int?> scheduleMask = const Value.absent(),
   }) => Habit(
     id: id ?? this.id,
     name: name ?? this.name,
     createdAt: createdAt ?? this.createdAt,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
+    scheduleMask: scheduleMask.present ? scheduleMask.value : this.scheduleMask,
   );
   Habit copyWithCompanion(HabitsCompanion data) {
     return Habit(
@@ -199,6 +241,9 @@ class Habit extends DataClass implements Insertable<Habit> {
       archivedAt: data.archivedAt.present
           ? data.archivedAt.value
           : this.archivedAt,
+      scheduleMask: data.scheduleMask.present
+          ? data.scheduleMask.value
+          : this.scheduleMask,
     );
   }
 
@@ -208,13 +253,15 @@ class Habit extends DataClass implements Insertable<Habit> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('createdAt: $createdAt, ')
-          ..write('archivedAt: $archivedAt')
+          ..write('archivedAt: $archivedAt, ')
+          ..write('scheduleMask: $scheduleMask')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, createdAt, archivedAt);
+  int get hashCode =>
+      Object.hash(id, name, createdAt, archivedAt, scheduleMask);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -222,7 +269,8 @@ class Habit extends DataClass implements Insertable<Habit> {
           other.id == this.id &&
           other.name == this.name &&
           other.createdAt == this.createdAt &&
-          other.archivedAt == this.archivedAt);
+          other.archivedAt == this.archivedAt &&
+          other.scheduleMask == this.scheduleMask);
 }
 
 class HabitsCompanion extends UpdateCompanion<Habit> {
@@ -230,12 +278,14 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
   final Value<String> name;
   final Value<int> createdAt;
   final Value<int?> archivedAt;
+  final Value<int?> scheduleMask;
   final Value<int> rowid;
   const HabitsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.archivedAt = const Value.absent(),
+    this.scheduleMask = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   HabitsCompanion.insert({
@@ -243,6 +293,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     required String name,
     required int createdAt,
     this.archivedAt = const Value.absent(),
+    this.scheduleMask = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -252,6 +303,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Expression<String>? name,
     Expression<int>? createdAt,
     Expression<int>? archivedAt,
+    Expression<int>? scheduleMask,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -259,6 +311,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       if (name != null) 'name': name,
       if (createdAt != null) 'created_at': createdAt,
       if (archivedAt != null) 'archived_at': archivedAt,
+      if (scheduleMask != null) 'schedule_mask': scheduleMask,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -268,6 +321,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Value<String>? name,
     Value<int>? createdAt,
     Value<int?>? archivedAt,
+    Value<int?>? scheduleMask,
     Value<int>? rowid,
   }) {
     return HabitsCompanion(
@@ -275,6 +329,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       name: name ?? this.name,
       createdAt: createdAt ?? this.createdAt,
       archivedAt: archivedAt ?? this.archivedAt,
+      scheduleMask: scheduleMask ?? this.scheduleMask,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -294,6 +349,9 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     if (archivedAt.present) {
       map['archived_at'] = Variable<int>(archivedAt.value);
     }
+    if (scheduleMask.present) {
+      map['schedule_mask'] = Variable<int>(scheduleMask.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -307,6 +365,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
           ..write('name: $name, ')
           ..write('createdAt: $createdAt, ')
           ..write('archivedAt: $archivedAt, ')
+          ..write('scheduleMask: $scheduleMask, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -658,6 +717,7 @@ typedef $$HabitsTableCreateCompanionBuilder =
       required String name,
       required int createdAt,
       Value<int?> archivedAt,
+      Value<int?> scheduleMask,
       Value<int> rowid,
     });
 typedef $$HabitsTableUpdateCompanionBuilder =
@@ -666,6 +726,7 @@ typedef $$HabitsTableUpdateCompanionBuilder =
       Value<String> name,
       Value<int> createdAt,
       Value<int?> archivedAt,
+      Value<int?> scheduleMask,
       Value<int> rowid,
     });
 
@@ -722,6 +783,11 @@ class $$HabitsTableFilterComposer extends Composer<_$AppDb, $HabitsTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get scheduleMask => $composableBuilder(
+    column: $table.scheduleMask,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> habitCompletionsRefs(
     Expression<bool> Function($$HabitCompletionsTableFilterComposer f) f,
   ) {
@@ -775,6 +841,11 @@ class $$HabitsTableOrderingComposer extends Composer<_$AppDb, $HabitsTable> {
     column: $table.archivedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get scheduleMask => $composableBuilder(
+    column: $table.scheduleMask,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$HabitsTableAnnotationComposer extends Composer<_$AppDb, $HabitsTable> {
@@ -796,6 +867,11 @@ class $$HabitsTableAnnotationComposer extends Composer<_$AppDb, $HabitsTable> {
 
   GeneratedColumn<int> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get scheduleMask => $composableBuilder(
+    column: $table.scheduleMask,
     builder: (column) => column,
   );
 
@@ -857,12 +933,14 @@ class $$HabitsTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int?> archivedAt = const Value.absent(),
+                Value<int?> scheduleMask = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HabitsCompanion(
                 id: id,
                 name: name,
                 createdAt: createdAt,
                 archivedAt: archivedAt,
+                scheduleMask: scheduleMask,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -871,12 +949,14 @@ class $$HabitsTableTableManager
                 required String name,
                 required int createdAt,
                 Value<int?> archivedAt = const Value.absent(),
+                Value<int?> scheduleMask = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HabitsCompanion.insert(
                 id: id,
                 name: name,
                 createdAt: createdAt,
                 archivedAt: archivedAt,
+                scheduleMask: scheduleMask,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -13,7 +13,22 @@ class AppDb extends _$AppDb {
   AppDb() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (migrator) async {
+          await migrator.createAll();
+        },
+        onUpgrade: (migrator, from, to) async {
+          if (from < 2) {
+            await migrator.addColumn(habits, habits.scheduleMask);
+          }
+          if (from < 3) {
+            await migrator.alterTable(TableMigration(habits));
+          }
+        },
+      );
 }
 
 LazyDatabase _openConnection() {
