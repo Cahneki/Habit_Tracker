@@ -694,6 +694,483 @@ class HabitCompletionsCompanion extends UpdateCompanion<HabitCompletion> {
   }
 }
 
+class $UserSettingsTable extends UserSettings
+    with TableInfo<$UserSettingsTable, UserSetting> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $UserSettingsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _soundEnabledMeta = const VerificationMeta(
+    'soundEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> soundEnabled = GeneratedColumn<bool>(
+    'sound_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("sound_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _soundPackIdMeta = const VerificationMeta(
+    'soundPackId',
+  );
+  @override
+  late final GeneratedColumn<String> soundPackId = GeneratedColumn<String>(
+    'sound_pack_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('system'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, soundEnabled, soundPackId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'user_settings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<UserSetting> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('sound_enabled')) {
+      context.handle(
+        _soundEnabledMeta,
+        soundEnabled.isAcceptableOrUnknown(
+          data['sound_enabled']!,
+          _soundEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sound_pack_id')) {
+      context.handle(
+        _soundPackIdMeta,
+        soundPackId.isAcceptableOrUnknown(
+          data['sound_pack_id']!,
+          _soundPackIdMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  UserSetting map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return UserSetting(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      soundEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}sound_enabled'],
+      )!,
+      soundPackId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sound_pack_id'],
+      )!,
+    );
+  }
+
+  @override
+  $UserSettingsTable createAlias(String alias) {
+    return $UserSettingsTable(attachedDatabase, alias);
+  }
+}
+
+class UserSetting extends DataClass implements Insertable<UserSetting> {
+  final int id;
+  final bool soundEnabled;
+  final String soundPackId;
+  const UserSetting({
+    required this.id,
+    required this.soundEnabled,
+    required this.soundPackId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['sound_enabled'] = Variable<bool>(soundEnabled);
+    map['sound_pack_id'] = Variable<String>(soundPackId);
+    return map;
+  }
+
+  UserSettingsCompanion toCompanion(bool nullToAbsent) {
+    return UserSettingsCompanion(
+      id: Value(id),
+      soundEnabled: Value(soundEnabled),
+      soundPackId: Value(soundPackId),
+    );
+  }
+
+  factory UserSetting.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return UserSetting(
+      id: serializer.fromJson<int>(json['id']),
+      soundEnabled: serializer.fromJson<bool>(json['soundEnabled']),
+      soundPackId: serializer.fromJson<String>(json['soundPackId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'soundEnabled': serializer.toJson<bool>(soundEnabled),
+      'soundPackId': serializer.toJson<String>(soundPackId),
+    };
+  }
+
+  UserSetting copyWith({int? id, bool? soundEnabled, String? soundPackId}) =>
+      UserSetting(
+        id: id ?? this.id,
+        soundEnabled: soundEnabled ?? this.soundEnabled,
+        soundPackId: soundPackId ?? this.soundPackId,
+      );
+  UserSetting copyWithCompanion(UserSettingsCompanion data) {
+    return UserSetting(
+      id: data.id.present ? data.id.value : this.id,
+      soundEnabled: data.soundEnabled.present
+          ? data.soundEnabled.value
+          : this.soundEnabled,
+      soundPackId: data.soundPackId.present
+          ? data.soundPackId.value
+          : this.soundPackId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UserSetting(')
+          ..write('id: $id, ')
+          ..write('soundEnabled: $soundEnabled, ')
+          ..write('soundPackId: $soundPackId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, soundEnabled, soundPackId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is UserSetting &&
+          other.id == this.id &&
+          other.soundEnabled == this.soundEnabled &&
+          other.soundPackId == this.soundPackId);
+}
+
+class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
+  final Value<int> id;
+  final Value<bool> soundEnabled;
+  final Value<String> soundPackId;
+  const UserSettingsCompanion({
+    this.id = const Value.absent(),
+    this.soundEnabled = const Value.absent(),
+    this.soundPackId = const Value.absent(),
+  });
+  UserSettingsCompanion.insert({
+    this.id = const Value.absent(),
+    this.soundEnabled = const Value.absent(),
+    this.soundPackId = const Value.absent(),
+  });
+  static Insertable<UserSetting> custom({
+    Expression<int>? id,
+    Expression<bool>? soundEnabled,
+    Expression<String>? soundPackId,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (soundEnabled != null) 'sound_enabled': soundEnabled,
+      if (soundPackId != null) 'sound_pack_id': soundPackId,
+    });
+  }
+
+  UserSettingsCompanion copyWith({
+    Value<int>? id,
+    Value<bool>? soundEnabled,
+    Value<String>? soundPackId,
+  }) {
+    return UserSettingsCompanion(
+      id: id ?? this.id,
+      soundEnabled: soundEnabled ?? this.soundEnabled,
+      soundPackId: soundPackId ?? this.soundPackId,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (soundEnabled.present) {
+      map['sound_enabled'] = Variable<bool>(soundEnabled.value);
+    }
+    if (soundPackId.present) {
+      map['sound_pack_id'] = Variable<String>(soundPackId.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UserSettingsCompanion(')
+          ..write('id: $id, ')
+          ..write('soundEnabled: $soundEnabled, ')
+          ..write('soundPackId: $soundPackId')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $EquippedCosmeticsTable extends EquippedCosmetics
+    with TableInfo<$EquippedCosmeticsTable, EquippedCosmetic> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $EquippedCosmeticsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _slotMeta = const VerificationMeta('slot');
+  @override
+  late final GeneratedColumn<String> slot = GeneratedColumn<String>(
+    'slot',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cosmeticIdMeta = const VerificationMeta(
+    'cosmeticId',
+  );
+  @override
+  late final GeneratedColumn<String> cosmeticId = GeneratedColumn<String>(
+    'cosmetic_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [slot, cosmeticId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'equipped_cosmetics';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<EquippedCosmetic> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('slot')) {
+      context.handle(
+        _slotMeta,
+        slot.isAcceptableOrUnknown(data['slot']!, _slotMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_slotMeta);
+    }
+    if (data.containsKey('cosmetic_id')) {
+      context.handle(
+        _cosmeticIdMeta,
+        cosmeticId.isAcceptableOrUnknown(data['cosmetic_id']!, _cosmeticIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_cosmeticIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {slot};
+  @override
+  EquippedCosmetic map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return EquippedCosmetic(
+      slot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}slot'],
+      )!,
+      cosmeticId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cosmetic_id'],
+      )!,
+    );
+  }
+
+  @override
+  $EquippedCosmeticsTable createAlias(String alias) {
+    return $EquippedCosmeticsTable(attachedDatabase, alias);
+  }
+}
+
+class EquippedCosmetic extends DataClass
+    implements Insertable<EquippedCosmetic> {
+  final String slot;
+  final String cosmeticId;
+  const EquippedCosmetic({required this.slot, required this.cosmeticId});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['slot'] = Variable<String>(slot);
+    map['cosmetic_id'] = Variable<String>(cosmeticId);
+    return map;
+  }
+
+  EquippedCosmeticsCompanion toCompanion(bool nullToAbsent) {
+    return EquippedCosmeticsCompanion(
+      slot: Value(slot),
+      cosmeticId: Value(cosmeticId),
+    );
+  }
+
+  factory EquippedCosmetic.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return EquippedCosmetic(
+      slot: serializer.fromJson<String>(json['slot']),
+      cosmeticId: serializer.fromJson<String>(json['cosmeticId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'slot': serializer.toJson<String>(slot),
+      'cosmeticId': serializer.toJson<String>(cosmeticId),
+    };
+  }
+
+  EquippedCosmetic copyWith({String? slot, String? cosmeticId}) =>
+      EquippedCosmetic(
+        slot: slot ?? this.slot,
+        cosmeticId: cosmeticId ?? this.cosmeticId,
+      );
+  EquippedCosmetic copyWithCompanion(EquippedCosmeticsCompanion data) {
+    return EquippedCosmetic(
+      slot: data.slot.present ? data.slot.value : this.slot,
+      cosmeticId: data.cosmeticId.present
+          ? data.cosmeticId.value
+          : this.cosmeticId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EquippedCosmetic(')
+          ..write('slot: $slot, ')
+          ..write('cosmeticId: $cosmeticId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(slot, cosmeticId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is EquippedCosmetic &&
+          other.slot == this.slot &&
+          other.cosmeticId == this.cosmeticId);
+}
+
+class EquippedCosmeticsCompanion extends UpdateCompanion<EquippedCosmetic> {
+  final Value<String> slot;
+  final Value<String> cosmeticId;
+  final Value<int> rowid;
+  const EquippedCosmeticsCompanion({
+    this.slot = const Value.absent(),
+    this.cosmeticId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  EquippedCosmeticsCompanion.insert({
+    required String slot,
+    required String cosmeticId,
+    this.rowid = const Value.absent(),
+  }) : slot = Value(slot),
+       cosmeticId = Value(cosmeticId);
+  static Insertable<EquippedCosmetic> custom({
+    Expression<String>? slot,
+    Expression<String>? cosmeticId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (slot != null) 'slot': slot,
+      if (cosmeticId != null) 'cosmetic_id': cosmeticId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  EquippedCosmeticsCompanion copyWith({
+    Value<String>? slot,
+    Value<String>? cosmeticId,
+    Value<int>? rowid,
+  }) {
+    return EquippedCosmeticsCompanion(
+      slot: slot ?? this.slot,
+      cosmeticId: cosmeticId ?? this.cosmeticId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (slot.present) {
+      map['slot'] = Variable<String>(slot.value);
+    }
+    if (cosmeticId.present) {
+      map['cosmetic_id'] = Variable<String>(cosmeticId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EquippedCosmeticsCompanion(')
+          ..write('slot: $slot, ')
+          ..write('cosmeticId: $cosmeticId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDb extends GeneratedDatabase {
   _$AppDb(QueryExecutor e) : super(e);
   $AppDbManager get managers => $AppDbManager(this);
@@ -701,6 +1178,9 @@ abstract class _$AppDb extends GeneratedDatabase {
   late final $HabitCompletionsTable habitCompletions = $HabitCompletionsTable(
     this,
   );
+  late final $UserSettingsTable userSettings = $UserSettingsTable(this);
+  late final $EquippedCosmeticsTable equippedCosmetics =
+      $EquippedCosmeticsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -708,6 +1188,8 @@ abstract class _$AppDb extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     habits,
     habitCompletions,
+    userSettings,
+    equippedCosmetics,
   ];
 }
 
@@ -1321,6 +1803,313 @@ typedef $$HabitCompletionsTableProcessedTableManager =
       HabitCompletion,
       PrefetchHooks Function({bool habitId})
     >;
+typedef $$UserSettingsTableCreateCompanionBuilder =
+    UserSettingsCompanion Function({
+      Value<int> id,
+      Value<bool> soundEnabled,
+      Value<String> soundPackId,
+    });
+typedef $$UserSettingsTableUpdateCompanionBuilder =
+    UserSettingsCompanion Function({
+      Value<int> id,
+      Value<bool> soundEnabled,
+      Value<String> soundPackId,
+    });
+
+class $$UserSettingsTableFilterComposer
+    extends Composer<_$AppDb, $UserSettingsTable> {
+  $$UserSettingsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get soundEnabled => $composableBuilder(
+    column: $table.soundEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get soundPackId => $composableBuilder(
+    column: $table.soundPackId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$UserSettingsTableOrderingComposer
+    extends Composer<_$AppDb, $UserSettingsTable> {
+  $$UserSettingsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get soundEnabled => $composableBuilder(
+    column: $table.soundEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get soundPackId => $composableBuilder(
+    column: $table.soundPackId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$UserSettingsTableAnnotationComposer
+    extends Composer<_$AppDb, $UserSettingsTable> {
+  $$UserSettingsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<bool> get soundEnabled => $composableBuilder(
+    column: $table.soundEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get soundPackId => $composableBuilder(
+    column: $table.soundPackId,
+    builder: (column) => column,
+  );
+}
+
+class $$UserSettingsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDb,
+          $UserSettingsTable,
+          UserSetting,
+          $$UserSettingsTableFilterComposer,
+          $$UserSettingsTableOrderingComposer,
+          $$UserSettingsTableAnnotationComposer,
+          $$UserSettingsTableCreateCompanionBuilder,
+          $$UserSettingsTableUpdateCompanionBuilder,
+          (
+            UserSetting,
+            BaseReferences<_$AppDb, $UserSettingsTable, UserSetting>,
+          ),
+          UserSetting,
+          PrefetchHooks Function()
+        > {
+  $$UserSettingsTableTableManager(_$AppDb db, $UserSettingsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$UserSettingsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$UserSettingsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$UserSettingsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<bool> soundEnabled = const Value.absent(),
+                Value<String> soundPackId = const Value.absent(),
+              }) => UserSettingsCompanion(
+                id: id,
+                soundEnabled: soundEnabled,
+                soundPackId: soundPackId,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<bool> soundEnabled = const Value.absent(),
+                Value<String> soundPackId = const Value.absent(),
+              }) => UserSettingsCompanion.insert(
+                id: id,
+                soundEnabled: soundEnabled,
+                soundPackId: soundPackId,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$UserSettingsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDb,
+      $UserSettingsTable,
+      UserSetting,
+      $$UserSettingsTableFilterComposer,
+      $$UserSettingsTableOrderingComposer,
+      $$UserSettingsTableAnnotationComposer,
+      $$UserSettingsTableCreateCompanionBuilder,
+      $$UserSettingsTableUpdateCompanionBuilder,
+      (UserSetting, BaseReferences<_$AppDb, $UserSettingsTable, UserSetting>),
+      UserSetting,
+      PrefetchHooks Function()
+    >;
+typedef $$EquippedCosmeticsTableCreateCompanionBuilder =
+    EquippedCosmeticsCompanion Function({
+      required String slot,
+      required String cosmeticId,
+      Value<int> rowid,
+    });
+typedef $$EquippedCosmeticsTableUpdateCompanionBuilder =
+    EquippedCosmeticsCompanion Function({
+      Value<String> slot,
+      Value<String> cosmeticId,
+      Value<int> rowid,
+    });
+
+class $$EquippedCosmeticsTableFilterComposer
+    extends Composer<_$AppDb, $EquippedCosmeticsTable> {
+  $$EquippedCosmeticsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get slot => $composableBuilder(
+    column: $table.slot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cosmeticId => $composableBuilder(
+    column: $table.cosmeticId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$EquippedCosmeticsTableOrderingComposer
+    extends Composer<_$AppDb, $EquippedCosmeticsTable> {
+  $$EquippedCosmeticsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get slot => $composableBuilder(
+    column: $table.slot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cosmeticId => $composableBuilder(
+    column: $table.cosmeticId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$EquippedCosmeticsTableAnnotationComposer
+    extends Composer<_$AppDb, $EquippedCosmeticsTable> {
+  $$EquippedCosmeticsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get slot =>
+      $composableBuilder(column: $table.slot, builder: (column) => column);
+
+  GeneratedColumn<String> get cosmeticId => $composableBuilder(
+    column: $table.cosmeticId,
+    builder: (column) => column,
+  );
+}
+
+class $$EquippedCosmeticsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDb,
+          $EquippedCosmeticsTable,
+          EquippedCosmetic,
+          $$EquippedCosmeticsTableFilterComposer,
+          $$EquippedCosmeticsTableOrderingComposer,
+          $$EquippedCosmeticsTableAnnotationComposer,
+          $$EquippedCosmeticsTableCreateCompanionBuilder,
+          $$EquippedCosmeticsTableUpdateCompanionBuilder,
+          (
+            EquippedCosmetic,
+            BaseReferences<_$AppDb, $EquippedCosmeticsTable, EquippedCosmetic>,
+          ),
+          EquippedCosmetic,
+          PrefetchHooks Function()
+        > {
+  $$EquippedCosmeticsTableTableManager(
+    _$AppDb db,
+    $EquippedCosmeticsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$EquippedCosmeticsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$EquippedCosmeticsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$EquippedCosmeticsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> slot = const Value.absent(),
+                Value<String> cosmeticId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => EquippedCosmeticsCompanion(
+                slot: slot,
+                cosmeticId: cosmeticId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String slot,
+                required String cosmeticId,
+                Value<int> rowid = const Value.absent(),
+              }) => EquippedCosmeticsCompanion.insert(
+                slot: slot,
+                cosmeticId: cosmeticId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$EquippedCosmeticsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDb,
+      $EquippedCosmeticsTable,
+      EquippedCosmetic,
+      $$EquippedCosmeticsTableFilterComposer,
+      $$EquippedCosmeticsTableOrderingComposer,
+      $$EquippedCosmeticsTableAnnotationComposer,
+      $$EquippedCosmeticsTableCreateCompanionBuilder,
+      $$EquippedCosmeticsTableUpdateCompanionBuilder,
+      (
+        EquippedCosmetic,
+        BaseReferences<_$AppDb, $EquippedCosmeticsTable, EquippedCosmetic>,
+      ),
+      EquippedCosmetic,
+      PrefetchHooks Function()
+    >;
 
 class $AppDbManager {
   final _$AppDb _db;
@@ -1329,4 +2118,8 @@ class $AppDbManager {
       $$HabitsTableTableManager(_db, _db.habits);
   $$HabitCompletionsTableTableManager get habitCompletions =>
       $$HabitCompletionsTableTableManager(_db, _db.habitCompletions);
+  $$UserSettingsTableTableManager get userSettings =>
+      $$UserSettingsTableTableManager(_db, _db.userSettings);
+  $$EquippedCosmeticsTableTableManager get equippedCosmetics =>
+      $$EquippedCosmeticsTableTableManager(_db, _db.equippedCosmetics);
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_theme.dart';
 
 class ScheduleMask {
   static Set<int> daysFromMask(int? mask) {
@@ -43,18 +44,22 @@ class SchedulePicker extends StatelessWidget {
     const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
     final size = compact ? 28.0 : 32.0;
     final textStyle = Theme.of(context).textTheme.bodySmall;
+    final activeColor = AppTheme.primary;
+    final borderMuted = AppTheme.cardBorder;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: List.generate(labels.length, (i) {
         final active = activeDays.contains(i);
-        final borderColor =
-            disabled ? Colors.black12 : (active ? Colors.blueAccent : Colors.black12);
+        final borderColor = disabled
+            ? borderMuted.withValues(alpha: 0.6)
+            : (active ? activeColor : borderMuted);
         final bgColor = disabled
             ? Colors.transparent
-            : (active ? Colors.blue.withValues(alpha: 0.2) : Colors.transparent);
-        final labelColor =
-            disabled ? Colors.black26 : (active ? Colors.blueAccent : Colors.black54);
+            : (active ? activeColor.withValues(alpha: 0.2) : Colors.transparent);
+        final labelColor = disabled
+            ? AppTheme.muted.withValues(alpha: 0.6)
+            : (active ? AppTheme.wood : AppTheme.muted);
 
         return Material(
           color: bgColor,

@@ -25,3 +25,20 @@ class HabitCompletions extends Table {
         {habitId, localDay}, // prevents double completion per day
       ];
 }
+
+class UserSettings extends Table {
+  IntColumn get id => integer().withDefault(const Constant(1))();
+  BoolColumn get soundEnabled => boolean().withDefault(const Constant(true))();
+  TextColumn get soundPackId => text().withDefault(const Constant('system'))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class EquippedCosmetics extends Table {
+  TextColumn get slot => text()(); // head, body, accessory
+  TextColumn get cosmeticId => text()();
+
+  @override
+  Set<Column> get primaryKey => {slot};
+}

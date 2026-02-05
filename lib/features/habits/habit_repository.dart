@@ -18,6 +18,18 @@ class StreakStats {
   final bool completedToday;
 }
 
+class HabitDayStatus {
+  const HabitDayStatus({
+    required this.habit,
+    required this.scheduled,
+    required this.completed,
+  });
+
+  final Habit habit;
+  final bool scheduled;
+  final bool completed;
+}
+
 class HabitRepository {
   HabitRepository(this.db);
   final AppDb db;
@@ -47,6 +59,14 @@ class HabitRepository {
     return db.select(db.habits).get();
   }
 
+  Future<List<Habit>> listActiveHabits() {
+    return (db.select(db.habits)..where((h) => h.archivedAt.isNull())).get();
+  }
+
+  Future<List<Habit>> listArchivedHabits() {
+    return (db.select(db.habits)..where((h) => h.archivedAt.isNotNull())).get();
+  }
+
   Future<void> createHabit({
     required String id,
     required String name,
@@ -64,10 +84,38 @@ class HabitRepository {
         );
   }
 
+  Future<void> renameHabit(String habitId, String name) async {
+    await (db.update(db.habits)..where((h) => h.id.equals(habitId))).write(
+      HabitsCompanion(name: Value(name)),
+    );
+  }
+
   Future<void> updateScheduleMask(String habitId, int scheduleMask) async {
     await (db.update(db.habits)..where((h) => h.id.equals(habitId))).write(
       HabitsCompanion(scheduleMask: Value(scheduleMask)),
     );
+  }
+
+  Future<void> archiveHabit(String habitId) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await (db.update(db.habits)..where((h) => h.id.equals(habitId))).write(
+      HabitsCompanion(archivedAt: Value(now)),
+    );
+  }
+
+  Future<void> unarchiveHabit(String habitId) async {
+    await (db.update(db.habits)..where((h) => h.id.equals(habitId))).write(
+      const HabitsCompanion(archivedAt: Value(null)),
+    );
+  }
+
+  Future<void> deleteHabit(String habitId) async {
+    await db.transaction(() async {
+      await (db.delete(db.habitCompletions)
+            ..where((c) => c.habitId.equals(habitId)))
+          .go();
+      await (db.delete(db.habits)..where((h) => h.id.equals(habitId))).go();
+    });
   }
 
   Future<void> completeHabit(String habitId) async {
@@ -115,6 +163,25 @@ class HabitRepository {
             (c) => c.habitId.equals(habitId) & c.localDay.equals(localDay),
           ))
         .go();
+  }
+
+  Future<List<HabitDayStatus>> getHabitsForDate(DateTime date) async {
+    final localDay = _localDay(date);
+    final habits = await listActiveHabits();
+    final completions = await (db.select(db.habitCompletions)
+          ..where((c) => c.localDay.equals(localDay)))
+        .get();
+    final completedIds = completions.map((c) => c.habitId).toSet();
+
+    return habits
+        .map(
+          (h) => HabitDayStatus(
+            habit: h,
+            scheduled: _isScheduled(date, h.scheduleMask),
+            completed: completedIds.contains(h.id),
+          ),
+        )
+        .toList();
   }
 
   Future<StreakStats> getStreakStats(String habitId) async {
@@ -199,10 +266,12 @@ class HabitRepository {
       completedToday: completedToday,
     );
   }
-  Future<Set<String>> getCompletionDaysForMonth(String habitId, DateTime month) async {
-    final start = DateTime(month.year, month.month, 1);
-    final end = DateTime(month.year, month.month + 1, 1);
 
+  Future<Set<String>> getCompletionDaysForRange(
+    String habitId,
+    DateTime start,
+    DateTime endExclusive,
+  ) async {
     String ld(DateTime dt) {
       final y = dt.year.toString().padLeft(4, '0');
       final m = dt.month.toString().padLeft(2, '0');
@@ -211,7 +280,7 @@ class HabitRepository {
     }
 
     final startStr = ld(start);
-    final endStr = ld(end);
+    final endStr = ld(endExclusive);
 
     final rows = await (db.select(db.habitCompletions)
           ..where((c) =>
@@ -222,5 +291,17 @@ class HabitRepository {
         .get();
 
     return rows.map((r) => r.localDay).toSet();
+  }
+
+  Future<Set<String>> getCompletionDaysForMonth(String habitId, DateTime month) async {
+    final start = DateTime(month.year, month.month, 1);
+    final end = DateTime(month.year, month.month + 1, 1);
+
+    return getCompletionDaysForRange(habitId, start, end);
+  }
+
+  Future<int> getTotalCompletions() async {
+    final rows = await db.select(db.habitCompletions).get();
+    return rows.length;
   }
 }

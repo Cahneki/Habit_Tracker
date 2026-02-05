@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../db/app_db.dart';
+import '../../theme/app_theme.dart';
 import 'habit_repository.dart';
 import 'schedule_picker.dart';
 
@@ -47,26 +48,54 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(title: Text(widget.habit.name)),
-      body: Padding(
+      body: ListView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            FutureBuilder<StreakStats>(
-              future: widget.repo.getStreakStats(widget.habit.id),
-              builder: (_, snap) {
-                final s = snap.data;
-                if (s == null) return const LinearProgressIndicator();
-                final days = ScheduleMask.daysFromMask(scheduleMask);
+        children: [
+          FutureBuilder<StreakStats>(
+            future: widget.repo.getStreakStats(widget.habit.id),
+            builder: (_, snap) {
+              final s = snap.data;
+              if (s == null) {
+                return const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: LinearProgressIndicator(minHeight: 6),
+                );
+              }
+              final days = ScheduleMask.daysFromMask(scheduleMask);
 
-                return Column(
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: AppTheme.cardBorder),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x14000000),
+                      blurRadius: 10,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Current streak: ${s.current}'),
-                    Text('Best streak: ${s.longest}'),
-                    Text('Total completions: ${s.totalCompletions}'),
-                    const SizedBox(height: 12),
-                    const Text('Schedule', style: TextStyle(fontWeight: FontWeight.w600)),
+                    Row(
+                      children: [
+                        _MiniStat(label: 'Current', value: '${s.current}'),
+                        const SizedBox(width: 12),
+                        _MiniStat(label: 'Best', value: '${s.longest}'),
+                        const SizedBox(width: 12),
+                        _MiniStat(label: 'Total', value: '${s.totalCompletions}'),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Schedule',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
                     const SizedBox(height: 8),
                     SchedulePicker(activeDays: days, onChanged: _updateSchedule),
                     if (days.isEmpty) ...[
@@ -76,35 +105,100 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     SizedBox(
-                      height: 40,
+                      height: 44,
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: s.completedToday ? null : _complete,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.wood,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor:
+                              AppTheme.wood.withValues(alpha: 0.35),
+                          shape: const StadiumBorder(),
+                          textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
                         child: Text(
                           s.completedToday ? 'Completed today' : 'Complete today',
                         ),
                       ),
                     ),
                   ],
-                );
-              },
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: AppTheme.cardBorder),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x14000000),
+                  blurRadius: 10,
+                  offset: Offset(0, 6),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: _CalendarHistory(
-                repo: widget.repo,
-                habitId: widget.habit.id,
-                month: visibleMonth,
-                scheduleMask: scheduleMask,
-                onToggleDay: _toggleCompletionForDay,
-                onPrev: () => setState(() {
-                  visibleMonth = DateTime(visibleMonth.year, visibleMonth.month - 1, 1);
-                }),
-                onNext: () => setState(() {
-                  visibleMonth = DateTime(visibleMonth.year, visibleMonth.month + 1, 1);
-                }),
+            child: _CalendarHistory(
+              repo: widget.repo,
+              habitId: widget.habit.id,
+              month: visibleMonth,
+              scheduleMask: scheduleMask,
+              onToggleDay: _toggleCompletionForDay,
+              onPrev: () => setState(() {
+                visibleMonth = DateTime(visibleMonth.year, visibleMonth.month - 1, 1);
+              }),
+              onNext: () => setState(() {
+                visibleMonth = DateTime(visibleMonth.year, visibleMonth.month + 1, 1);
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppTheme.parchment,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppTheme.cardBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1,
+                color: AppTheme.muted,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.ink,
               ),
             ),
           ],
@@ -177,17 +271,20 @@ class _CalendarHistory extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Text('XP (this month)', style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text('XP (this month)', style: TextStyle(fontWeight: FontWeight.w700)),
                 const Spacer(),
                 Text('$completedScheduled/$scheduledDays ($pct%)'),
               ],
             ),
             const SizedBox(height: 6),
-            LinearProgressIndicator(
-              value: density,
-              minHeight: 8,
-              backgroundColor: Colors.black12,
-              color: Colors.blueAccent,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: LinearProgressIndicator(
+                value: density,
+                minHeight: 8,
+                backgroundColor: AppTheme.parchment,
+                color: AppTheme.primary,
+              ),
             ),
             if (scheduledDays == 0) ...[
               const SizedBox(height: 6),
@@ -212,10 +309,11 @@ class _CalendarHistory extends StatelessWidget {
 
             // Key fix: bounded height for the grid (no unbounded constraints).
             AspectRatio(
-              aspectRatio: 1.1, // tweak if you want it taller/shorter
+              aspectRatio: 1.1,
               child: _MonthGrid(
                 month: month,
                 completedLocalDays: completed,
+                scheduleMask: scheduleMask,
                 onToggleDay: onToggleDay,
               ),
             ),
@@ -230,11 +328,13 @@ class _MonthGrid extends StatelessWidget {
   const _MonthGrid({
     required this.month,
     required this.completedLocalDays,
+    required this.scheduleMask,
     required this.onToggleDay,
   });
 
   final DateTime month; // first day of month
   final Set<String> completedLocalDays;
+  final int? scheduleMask;
   final Future<void> Function(DateTime date) onToggleDay;
 
   String _localDay(DateTime dt) {
@@ -253,6 +353,13 @@ class _MonthGrid extends StatelessWidget {
     final firstWeekdayIndex = (first.weekday + 6) % 7;
 
     final totalCells = ((firstWeekdayIndex + daysInMonth + 6) ~/ 7) * 7;
+
+    bool isScheduled(DateTime date) {
+      if (scheduleMask == null) return true;
+      if (scheduleMask == 0) return false;
+      final bit = 1 << (date.weekday - 1); // Mon=1 .. Sun=7
+      return (scheduleMask! & bit) != 0;
+    }
 
     return Column(
       children: [
@@ -289,9 +396,17 @@ class _MonthGrid extends StatelessWidget {
               final date = DateTime(month.year, month.month, dayNum);
               final key = _localDay(date);
               final done = completedLocalDays.contains(key);
+              final scheduled = isScheduled(date);
+              final labelColor = scheduled
+                  ? AppTheme.ink
+                  : AppTheme.muted.withValues(alpha: 0.55);
+              final borderColor = scheduled
+                  ? AppTheme.cardBorder
+                  : AppTheme.cardBorder.withValues(alpha: 0.45);
 
               return Material(
-                color: done ? Colors.green.withValues(alpha: 0.25) : Colors.transparent,
+                color:
+                    done ? AppTheme.primary.withValues(alpha: 0.2) : Colors.transparent,
                 borderRadius: BorderRadius.circular(10),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(10),
@@ -300,9 +415,15 @@ class _MonthGrid extends StatelessWidget {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.black12),
+                      border: Border.all(color: borderColor),
                     ),
-                    child: Text(dayNum.toString()),
+                    child: Text(
+                      dayNum.toString(),
+                      style: TextStyle(
+                        color: labelColor,
+                        fontWeight: done ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                    ),
                   ),
                 ),
               );
@@ -322,7 +443,12 @@ class _Dow extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 24,
-      child: Center(child: Text(t, style: const TextStyle(fontSize: 12))),
+      child: Center(
+        child: Text(
+          t,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      ),
     );
   }
 }
