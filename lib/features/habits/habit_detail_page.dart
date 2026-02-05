@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 import '../../db/app_db.dart';
+import '../../shared/local_day.dart';
 import '../../theme/app_theme.dart';
 import 'habit_repository.dart';
 import 'schedule_picker.dart';
 
 class HabitDetailPage extends StatefulWidget {
-  const HabitDetailPage({super.key, required this.repo, required this.habit});
+  const HabitDetailPage({
+    super.key,
+    required this.repo,
+    required this.habit,
+    this.onDataChanged,
+  });
 
   final HabitRepository repo;
   final Habit habit;
+  final VoidCallback? onDataChanged;
 
   @override
   State<HabitDetailPage> createState() => _HabitDetailPageState();
@@ -28,11 +35,13 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
 
   Future<void> _complete() async {
     await widget.repo.completeHabit(widget.habit.id);
+    widget.onDataChanged?.call();
     setState(() {});
   }
 
   Future<void> _toggleCompletionForDay(DateTime day) async {
     await widget.repo.toggleCompletionForDay(widget.habit.id, day);
+    widget.onDataChanged?.call();
     if (!mounted) return;
     setState(() {});
   }
@@ -43,6 +52,14 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
       scheduleMask = mask;
     });
     await widget.repo.updateScheduleMask(widget.habit.id, mask);
+    widget.onDataChanged?.call();
+  }
+
+  bool _isScheduled(DateTime date) {
+    if (scheduleMask == null) return true;
+    if (scheduleMask == 0) return false;
+    final bit = 1 << (date.weekday - 1);
+    return (scheduleMask! & bit) != 0;
   }
 
   @override
@@ -110,7 +127,10 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
                       height: 44,
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: s.completedToday ? null : _complete,
+                        onPressed:
+                            s.completedToday || !_isScheduled(DateTime.now())
+                                ? null
+                                : _complete,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.wood,
                           foregroundColor: Colors.white,
@@ -247,13 +267,6 @@ class _CalendarHistory extends StatelessWidget {
           return (scheduleMask! & bit) != 0;
         }
 
-        String localDay(DateTime dt) {
-          final y = dt.year.toString().padLeft(4, '0');
-          final m = dt.month.toString().padLeft(2, '0');
-          final d = dt.day.toString().padLeft(2, '0');
-          return '$y-$m-$d';
-        }
-
         for (var day = 1; day <= daysInMonth; day++) {
           final date = DateTime(month.year, month.month, day);
           if (!isScheduled(date)) continue;
@@ -317,6 +330,24 @@ class _CalendarHistory extends StatelessWidget {
                 onToggleDay: onToggleDay,
               ),
             ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: AppTheme.cardBorder.withValues(alpha: 0.5),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Not scheduled',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
           ],
         );
       },
@@ -336,13 +367,6 @@ class _MonthGrid extends StatelessWidget {
   final Set<String> completedLocalDays;
   final int? scheduleMask;
   final Future<void> Function(DateTime date) onToggleDay;
-
-  String _localDay(DateTime dt) {
-    final y = dt.year.toString().padLeft(4, '0');
-    final m = dt.month.toString().padLeft(2, '0');
-    final d = dt.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -394,7 +418,7 @@ class _MonthGrid extends StatelessWidget {
               }
 
               final date = DateTime(month.year, month.month, dayNum);
-              final key = _localDay(date);
+              final key = localDay(date);
               final done = completedLocalDays.contains(key);
               final scheduled = isScheduled(date);
               final labelColor = scheduled
@@ -410,7 +434,7 @@ class _MonthGrid extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(10),
-                  onTap: () async => onToggleDay(date),
+                  onTap: scheduled ? () async => onToggleDay(date) : null,
                   child: Container(
                     alignment: Alignment.center,
                     decoration: BoxDecoration(

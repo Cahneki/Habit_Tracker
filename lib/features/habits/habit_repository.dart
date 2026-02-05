@@ -1,6 +1,7 @@
 // lib/features/habits/habit_repository.dart
 import 'package:drift/drift.dart';
 import '../../db/app_db.dart';
+import '../../shared/local_day.dart';
 
 class StreakStats {
   const StreakStats({
@@ -33,13 +34,7 @@ class HabitDayStatus {
 class HabitRepository {
   HabitRepository(this.db);
   final AppDb db;
-
-  String _localDay(DateTime dt) {
-    final y = dt.year.toString().padLeft(4, '0');
-    final m = dt.month.toString().padLeft(2, '0');
-    final d = dt.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
-  }
+  final Map<String, Map<String, Set<String>>> _completionRangeCache = {};
 
   DateTime _parseLocalDay(String s) {
     final y = int.parse(s.substring(0, 4));
@@ -53,6 +48,22 @@ class HabitRepository {
     if (scheduleMask == 0) return false;
     final bit = 1 << (date.weekday - 1); // Mon=1 .. Sun=7
     return (scheduleMask & bit) != 0;
+  }
+
+  bool _isDailySchedule(int? mask) {
+    return mask == null || mask == 0x7f;
+  }
+
+  void _clearCompletionRangeCache() {
+    _completionRangeCache.clear();
+  }
+
+  String _rangeKey(DateTime start, DateTime endExclusive, List<String>? habitIds) {
+    final base = '${localDay(start)}|${localDay(endExclusive)}';
+    if (habitIds == null) return '$base|*';
+    if (habitIds.isEmpty) return '$base|[]';
+    final ids = List<String>.from(habitIds)..sort();
+    return '$base|${ids.join(',')}';
   }
 
   Future<List<Habit>> listHabits() {
@@ -116,11 +127,16 @@ class HabitRepository {
           .go();
       await (db.delete(db.habits)..where((h) => h.id.equals(habitId))).go();
     });
+    _clearCompletionRangeCache();
   }
 
   Future<void> completeHabit(String habitId) async {
     final now = DateTime.now();
-    final today = _localDay(now);
+    final today = localDay(now);
+    final habit = await (db.select(db.habits)..where((h) => h.id.equals(habitId)))
+        .getSingleOrNull();
+    if (habit == null) return;
+    if (!_isScheduled(now, habit.scheduleMask)) return;
 
     await db.transaction(() async {
       await db.into(db.habitCompletions).insert(
@@ -133,43 +149,51 @@ class HabitRepository {
             mode: InsertMode.insertOrIgnore,
           );
     });
+    _clearCompletionRangeCache();
   }
 
   Future<void> toggleCompletionForDay(String habitId, DateTime day) async {
-    final localDay = _localDay(day);
+    final habit = await (db.select(db.habits)..where((h) => h.id.equals(habitId)))
+        .getSingleOrNull();
+    if (habit == null) return;
+    if (!_isScheduled(day, habit.scheduleMask)) return;
+
+    final localDayStr = localDay(day);
     final rows = await (db.select(db.habitCompletions)
           ..where(
-            (c) => c.habitId.equals(habitId) & c.localDay.equals(localDay),
+            (c) => c.habitId.equals(habitId) & c.localDay.equals(localDayStr),
           )
           ..limit(1))
         .get();
 
     if (rows.isEmpty) {
-      final completedAt = DateTime(day.year, day.month, day.day, 12);
+      final completedAt = dayAtNoon(day);
       await db.into(db.habitCompletions).insert(
             HabitCompletionsCompanion.insert(
-              id: 'c-$habitId-$localDay',
+              id: 'c-$habitId-$localDayStr',
               habitId: habitId,
               completedAt: completedAt.millisecondsSinceEpoch,
-              localDay: localDay,
+              localDay: localDayStr,
             ),
             mode: InsertMode.insertOrIgnore,
           );
+      _clearCompletionRangeCache();
       return;
     }
 
     await (db.delete(db.habitCompletions)
           ..where(
-            (c) => c.habitId.equals(habitId) & c.localDay.equals(localDay),
+            (c) => c.habitId.equals(habitId) & c.localDay.equals(localDayStr),
           ))
         .go();
+    _clearCompletionRangeCache();
   }
 
   Future<List<HabitDayStatus>> getHabitsForDate(DateTime date) async {
-    final localDay = _localDay(date);
+    final localDayStr = localDay(date);
     final habits = await listActiveHabits();
     final completions = await (db.select(db.habitCompletions)
-          ..where((c) => c.localDay.equals(localDay)))
+          ..where((c) => c.localDay.equals(localDayStr)))
         .get();
     final completedIds = completions.map((c) => c.habitId).toSet();
 
@@ -209,7 +233,7 @@ class HabitRepository {
     final completedSet = days.toSet();
 
     final now = DateTime.now();
-    final todayStr = _localDay(now);
+    final todayStr = localDay(now);
     final completedToday = completedSet.contains(todayStr);
 
     // If no schedule days are active, streaks are zero.
@@ -232,7 +256,7 @@ class HabitRepository {
         !d.isAfter(end);
         d = d.add(const Duration(days: 1))) {
       if (!_isScheduled(d, scheduleMask)) continue;
-      final key = _localDay(d);
+      final key = localDay(d);
       if (completedSet.contains(key)) {
         run += 1;
         if (run > longest) longest = run;
@@ -252,7 +276,7 @@ class HabitRepository {
         cursor = cursor.subtract(const Duration(days: 1));
         continue;
       }
-      final key = _localDay(cursor);
+      final key = localDay(cursor);
       if (!completedSet.contains(key)) break;
       current += 1;
       cursor = cursor.subtract(const Duration(days: 1));
@@ -272,15 +296,8 @@ class HabitRepository {
     DateTime start,
     DateTime endExclusive,
   ) async {
-    String ld(DateTime dt) {
-      final y = dt.year.toString().padLeft(4, '0');
-      final m = dt.month.toString().padLeft(2, '0');
-      final d = dt.day.toString().padLeft(2, '0');
-      return '$y-$m-$d';
-    }
-
-    final startStr = ld(start);
-    final endStr = ld(endExclusive);
+    final startStr = localDay(start);
+    final endStr = localDay(endExclusive);
 
     final rows = await (db.select(db.habitCompletions)
           ..where((c) =>
@@ -293,6 +310,37 @@ class HabitRepository {
     return rows.map((r) => r.localDay).toSet();
   }
 
+  Future<Map<String, Set<String>>> getCompletionDaysForRangeByHabit(
+    DateTime start,
+    DateTime endExclusive, {
+    List<String>? habitIds,
+  }) async {
+    final key = _rangeKey(start, endExclusive, habitIds);
+    final cached = _completionRangeCache[key];
+    if (cached != null) return cached;
+
+    final startStr = localDay(start);
+    final endStr = localDay(endExclusive);
+
+    final query = db.select(db.habitCompletions)
+      ..where((c) =>
+          c.localDay.isBiggerOrEqualValue(startStr) &
+          c.localDay.isSmallerThanValue(endStr));
+    if (habitIds != null) {
+      if (habitIds.isEmpty) return <String, Set<String>>{};
+      query.where((c) => c.habitId.isIn(habitIds));
+    }
+
+    final rows = await query.get();
+    final result = <String, Set<String>>{};
+    for (final row in rows) {
+      result.putIfAbsent(row.habitId, () => <String>{}).add(row.localDay);
+    }
+
+    _completionRangeCache[key] = result;
+    return result;
+  }
+
   Future<Set<String>> getCompletionDaysForMonth(String habitId, DateTime month) async {
     final start = DateTime(month.year, month.month, 1);
     final end = DateTime(month.year, month.month + 1, 1);
@@ -303,5 +351,56 @@ class HabitRepository {
   Future<int> getTotalCompletions() async {
     final rows = await db.select(db.habitCompletions).get();
     return rows.length;
+  }
+
+  Future<int> computeTotalXp() async {
+    final habits = await listHabits();
+    if (habits.isEmpty) return 0;
+
+    final habitById = {for (final h in habits) h.id: h};
+    final rows = await (db.select(db.habitCompletions)
+          ..orderBy([
+            (c) => OrderingTerm(expression: c.habitId),
+            (c) => OrderingTerm(expression: c.localDay),
+          ]))
+        .get();
+
+    final grouped = <String, List<String>>{};
+    for (final row in rows) {
+      grouped.putIfAbsent(row.habitId, () => []).add(row.localDay);
+    }
+
+    var totalXp = 0;
+    for (final entry in grouped.entries) {
+      final habit = habitById[entry.key];
+      if (habit == null) continue;
+      final scheduleMask = habit.scheduleMask;
+      final isDaily = _isDailySchedule(scheduleMask);
+      final days = entry.value;
+      if (days.isEmpty) continue;
+
+      final completedSet = days.toSet();
+      final start = _parseLocalDay(days.first);
+      final end = _parseLocalDay(days.last);
+      var streak = 0;
+
+      for (var d = start;
+          !d.isAfter(end);
+          d = d.add(const Duration(days: 1))) {
+        if (!_isScheduled(d, scheduleMask)) continue;
+        final key = localDay(d);
+        if (completedSet.contains(key)) {
+          streak += 1;
+          var xp = 20;
+          if (isDaily) xp += 10;
+          xp += (streak ~/ 5) * 5;
+          totalXp += xp.clamp(20, 60);
+        } else {
+          streak = 0;
+        }
+      }
+    }
+
+    return totalXp;
   }
 }
