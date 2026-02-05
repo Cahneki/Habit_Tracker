@@ -10,6 +10,7 @@ class CosmeticItem {
     required this.unlockLevel,
     required this.icon,
     required this.color,
+    required this.damageBonusPct,
   });
 
   final String id;
@@ -18,6 +19,7 @@ class CosmeticItem {
   final int unlockLevel;
   final IconData icon;
   final Color color;
+  final double damageBonusPct;
 }
 
 class AvatarRepository {
@@ -36,6 +38,7 @@ class AvatarRepository {
       unlockLevel: 1,
       icon: Icons.hiking_rounded,
       color: Color(0xFF8B5E34),
+      damageBonusPct: 0.02,
     ),
     CosmeticItem(
       id: 'head_crown',
@@ -44,6 +47,7 @@ class AvatarRepository {
       unlockLevel: 4,
       icon: Icons.emoji_nature_rounded,
       color: Color(0xFF2B8C4A),
+      damageBonusPct: 0.03,
     ),
     CosmeticItem(
       id: 'body_tunic',
@@ -52,6 +56,7 @@ class AvatarRepository {
       unlockLevel: 1,
       icon: Icons.checkroom_rounded,
       color: Color(0xFF4A2C2A),
+      damageBonusPct: 0.02,
     ),
     CosmeticItem(
       id: 'body_armor',
@@ -60,6 +65,7 @@ class AvatarRepository {
       unlockLevel: 6,
       icon: Icons.shield_rounded,
       color: Color(0xFFB0793D),
+      damageBonusPct: 0.04,
     ),
     CosmeticItem(
       id: 'acc_pouch',
@@ -68,6 +74,7 @@ class AvatarRepository {
       unlockLevel: 2,
       icon: Icons.backpack_rounded,
       color: Color(0xFF8B5E34),
+      damageBonusPct: 0.02,
     ),
     CosmeticItem(
       id: 'acc_compass',
@@ -76,6 +83,7 @@ class AvatarRepository {
       unlockLevel: 8,
       icon: Icons.explore_rounded,
       color: Color(0xFF3E5C76),
+      damageBonusPct: 0.04,
     ),
   ];
 

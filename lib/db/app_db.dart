@@ -8,12 +8,18 @@ import 'tables.dart';
 
 part 'app_db.g.dart';
 
-@DriftDatabase(tables: [Habits, HabitCompletions, UserSettings, EquippedCosmetics])
+@DriftDatabase(tables: [
+  Habits,
+  HabitCompletions,
+  UserSettings,
+  EquippedCosmetics,
+  BattleRewardsClaimed,
+])
 class AppDb extends _$AppDb {
   AppDb() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -42,6 +48,9 @@ class AppDb extends _$AppDb {
             await customStatement(
               'CREATE INDEX IF NOT EXISTS idx_habit_completions_local_day ON habit_completions (local_day)',
             );
+          }
+          if (from < 5) {
+            await migrator.createTable(battleRewardsClaimed);
           }
         },
       );

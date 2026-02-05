@@ -42,6 +42,7 @@ class _HabitRowVm {
 class _HabitsDashboardVm {
   const _HabitsDashboardVm({
     required this.rows,
+    required this.upcomingRows,
     required this.xp,
     required this.xpGoal,
     required this.xpToNext,
@@ -52,6 +53,7 @@ class _HabitsDashboardVm {
   });
 
   final List<_HabitRowVm> rows;
+  final List<_HabitRowVm> upcomingRows;
   final int xp;
   final int xpGoal;
   final int xpToNext;
@@ -86,6 +88,7 @@ class _TodayPageState extends State<TodayPage> {
     final statusById = {for (final s in dayStatuses) s.habit.id: s};
 
     final rows = <_HabitRowVm>[];
+    final upcomingRows = <_HabitRowVm>[];
     var bestCurrent = 0;
     var bestStreak = 0;
 
@@ -99,7 +102,10 @@ class _TodayPageState extends State<TodayPage> {
 
       final status = statusById[h.id] ??
           HabitDayStatus(habit: h, scheduled: false, completed: false);
-      if (!status.scheduled) continue;
+      if (!status.scheduled) {
+        upcomingRows.add(_HabitRowVm(habit: h, stats: stats, subtitle: subtitle));
+        continue;
+      }
       rows.add(_HabitRowVm(habit: h, stats: stats, subtitle: subtitle));
     }
 
@@ -116,6 +122,7 @@ class _TodayPageState extends State<TodayPage> {
 
     return _HabitsDashboardVm(
       rows: rows,
+      upcomingRows: upcomingRows,
       xp: xp,
       xpGoal: xpGoal,
       xpToNext: xpGoal - xp,
@@ -309,6 +316,55 @@ class _TodayPageState extends State<TodayPage> {
                                       ),
                                     ),
                                   ),
+                                if (vm.upcomingRows.isNotEmpty) ...[
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    'Upcoming',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Not scheduled today',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(color: AppTheme.muted),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  ...vm.upcomingRows.map(
+                                    (row) => Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 12),
+                                      child: _QuestCard(
+                                        row: row,
+                                        xpReward:
+                                            xpForHabit(row.habit, row.stats),
+                                        statusLabel: 'Not scheduled today',
+                                        urgent: false,
+                                        onComplete: null,
+                                        actionLabel: 'Not today',
+                                        onTap: () async {
+                                          await Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => HabitDetailPage(
+                                                repo: widget.repo,
+                                                habit: row.habit,
+                                                onDataChanged:
+                                                    widget.onDataChanged,
+                                              ),
+                                            ),
+                                          );
+                                          await _refresh();
+                                          widget.onDataChanged();
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -710,6 +766,7 @@ class _QuestCard extends StatelessWidget {
     required this.statusLabel,
     required this.urgent,
     required this.onComplete,
+    this.actionLabel,
     required this.onTap,
   });
 
@@ -718,6 +775,7 @@ class _QuestCard extends StatelessWidget {
   final String statusLabel;
   final bool urgent;
   final VoidCallback? onComplete;
+  final String? actionLabel;
   final VoidCallback onTap;
 
   @override
@@ -869,7 +927,12 @@ class _QuestCard extends StatelessWidget {
                             ),
                           ),
                           child:
-                              Text(row.stats.completedToday ? 'Undo' : 'Complete'),
+                              Text(
+                                actionLabel ??
+                                    (row.stats.completedToday
+                                        ? 'Undo'
+                                        : 'Complete'),
+                              ),
                         ),
                       ),
                     ],

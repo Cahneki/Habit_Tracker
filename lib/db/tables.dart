@@ -42,3 +42,12 @@ class EquippedCosmetics extends Table {
   @override
   Set<Column> get primaryKey => {slot};
 }
+
+class BattleRewardsClaimed extends Table {
+  TextColumn get battleId => text()(); // week_YYYY-MM-DD or month_YYYY-MM
+  IntColumn get milestone => integer()(); // 50, 75, 100
+  TextColumn get claimedAt => text()(); // ISO timestamp
+
+  @override
+  Set<Column> get primaryKey => {battleId, milestone};
+}

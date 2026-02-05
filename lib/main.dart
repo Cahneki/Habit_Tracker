@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'db/app_db.dart';
 import 'features/avatar/avatar_page.dart';
 import 'features/avatar/avatar_repository.dart';
+import 'features/battles/battle_rewards_repository.dart';
+import 'features/battles/battles_page.dart';
 import 'features/habits/habit_repository.dart';
 import 'features/habits/habits_manage_page.dart';
 import 'features/settings/settings_page.dart';
 import 'features/settings/settings_repository.dart';
-import 'features/stats/stats_page.dart';
 import 'features/today/today_page.dart';
 import 'services/audio_service.dart';
 import 'theme/app_theme.dart';
@@ -28,6 +29,7 @@ class _MyAppState extends State<MyApp> {
   late final HabitRepository repo;
   late final SettingsRepository settingsRepo;
   late final AvatarRepository avatarRepo;
+  late final BattleRewardsRepository battleRewardsRepo;
   late final AudioService audio;
 
   @override
@@ -37,6 +39,7 @@ class _MyAppState extends State<MyApp> {
     repo = HabitRepository(db);
     settingsRepo = SettingsRepository(db);
     avatarRepo = AvatarRepository(db);
+    battleRewardsRepo = BattleRewardsRepository(db);
     audio = AudioService(settingsRepo);
   }
 
@@ -55,6 +58,7 @@ class _MyAppState extends State<MyApp> {
         repo: repo,
         settingsRepo: settingsRepo,
         avatarRepo: avatarRepo,
+        battleRewardsRepo: battleRewardsRepo,
         audio: audio,
       ),
     );
@@ -67,12 +71,14 @@ class HomeScaffold extends StatefulWidget {
     required this.repo,
     required this.settingsRepo,
     required this.avatarRepo,
+    required this.battleRewardsRepo,
     required this.audio,
   });
 
   final HabitRepository repo;
   final SettingsRepository settingsRepo;
   final AvatarRepository avatarRepo;
+  final BattleRewardsRepository battleRewardsRepo;
   final AudioService audio;
 
   @override
@@ -114,15 +120,17 @@ class _HomeScaffoldState extends State<HomeScaffold> {
         dataVersion: _dataVersion,
         onDataChanged: _notifyDataChanged,
       ),
+      BattlesPage(
+        repo: widget.repo,
+        avatarRepo: widget.avatarRepo,
+        rewardsRepo: widget.battleRewardsRepo,
+        dataVersion: _dataVersion,
+        onDataChanged: _notifyDataChanged,
+      ),
       AvatarPage(
         repo: widget.repo,
         avatarRepo: widget.avatarRepo,
         audio: widget.audio,
-        dataVersion: _dataVersion,
-        onDataChanged: _notifyDataChanged,
-      ),
-      StatsPage(
-        repo: widget.repo,
         dataVersion: _dataVersion,
         onDataChanged: _notifyDataChanged,
       ),
@@ -153,12 +161,12 @@ class _HomeScaffoldState extends State<HomeScaffold> {
             label: 'Habits',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.backpack_rounded),
-            label: 'Avatar',
+            icon: Icon(Icons.sports_martial_arts_rounded),
+            label: 'Battles',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.leaderboard_rounded),
-            label: 'Stats',
+            icon: Icon(Icons.backpack_rounded),
+            label: 'Avatar',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings_rounded),

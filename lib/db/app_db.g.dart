@@ -1171,6 +1171,282 @@ class EquippedCosmeticsCompanion extends UpdateCompanion<EquippedCosmetic> {
   }
 }
 
+class $BattleRewardsClaimedTable extends BattleRewardsClaimed
+    with TableInfo<$BattleRewardsClaimedTable, BattleRewardsClaimedData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BattleRewardsClaimedTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _battleIdMeta = const VerificationMeta(
+    'battleId',
+  );
+  @override
+  late final GeneratedColumn<String> battleId = GeneratedColumn<String>(
+    'battle_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _milestoneMeta = const VerificationMeta(
+    'milestone',
+  );
+  @override
+  late final GeneratedColumn<int> milestone = GeneratedColumn<int>(
+    'milestone',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _claimedAtMeta = const VerificationMeta(
+    'claimedAt',
+  );
+  @override
+  late final GeneratedColumn<String> claimedAt = GeneratedColumn<String>(
+    'claimed_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [battleId, milestone, claimedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'battle_rewards_claimed';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BattleRewardsClaimedData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('battle_id')) {
+      context.handle(
+        _battleIdMeta,
+        battleId.isAcceptableOrUnknown(data['battle_id']!, _battleIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_battleIdMeta);
+    }
+    if (data.containsKey('milestone')) {
+      context.handle(
+        _milestoneMeta,
+        milestone.isAcceptableOrUnknown(data['milestone']!, _milestoneMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_milestoneMeta);
+    }
+    if (data.containsKey('claimed_at')) {
+      context.handle(
+        _claimedAtMeta,
+        claimedAt.isAcceptableOrUnknown(data['claimed_at']!, _claimedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_claimedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {battleId, milestone};
+  @override
+  BattleRewardsClaimedData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BattleRewardsClaimedData(
+      battleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}battle_id'],
+      )!,
+      milestone: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}milestone'],
+      )!,
+      claimedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}claimed_at'],
+      )!,
+    );
+  }
+
+  @override
+  $BattleRewardsClaimedTable createAlias(String alias) {
+    return $BattleRewardsClaimedTable(attachedDatabase, alias);
+  }
+}
+
+class BattleRewardsClaimedData extends DataClass
+    implements Insertable<BattleRewardsClaimedData> {
+  final String battleId;
+  final int milestone;
+  final String claimedAt;
+  const BattleRewardsClaimedData({
+    required this.battleId,
+    required this.milestone,
+    required this.claimedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['battle_id'] = Variable<String>(battleId);
+    map['milestone'] = Variable<int>(milestone);
+    map['claimed_at'] = Variable<String>(claimedAt);
+    return map;
+  }
+
+  BattleRewardsClaimedCompanion toCompanion(bool nullToAbsent) {
+    return BattleRewardsClaimedCompanion(
+      battleId: Value(battleId),
+      milestone: Value(milestone),
+      claimedAt: Value(claimedAt),
+    );
+  }
+
+  factory BattleRewardsClaimedData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BattleRewardsClaimedData(
+      battleId: serializer.fromJson<String>(json['battleId']),
+      milestone: serializer.fromJson<int>(json['milestone']),
+      claimedAt: serializer.fromJson<String>(json['claimedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'battleId': serializer.toJson<String>(battleId),
+      'milestone': serializer.toJson<int>(milestone),
+      'claimedAt': serializer.toJson<String>(claimedAt),
+    };
+  }
+
+  BattleRewardsClaimedData copyWith({
+    String? battleId,
+    int? milestone,
+    String? claimedAt,
+  }) => BattleRewardsClaimedData(
+    battleId: battleId ?? this.battleId,
+    milestone: milestone ?? this.milestone,
+    claimedAt: claimedAt ?? this.claimedAt,
+  );
+  BattleRewardsClaimedData copyWithCompanion(
+    BattleRewardsClaimedCompanion data,
+  ) {
+    return BattleRewardsClaimedData(
+      battleId: data.battleId.present ? data.battleId.value : this.battleId,
+      milestone: data.milestone.present ? data.milestone.value : this.milestone,
+      claimedAt: data.claimedAt.present ? data.claimedAt.value : this.claimedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BattleRewardsClaimedData(')
+          ..write('battleId: $battleId, ')
+          ..write('milestone: $milestone, ')
+          ..write('claimedAt: $claimedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(battleId, milestone, claimedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BattleRewardsClaimedData &&
+          other.battleId == this.battleId &&
+          other.milestone == this.milestone &&
+          other.claimedAt == this.claimedAt);
+}
+
+class BattleRewardsClaimedCompanion
+    extends UpdateCompanion<BattleRewardsClaimedData> {
+  final Value<String> battleId;
+  final Value<int> milestone;
+  final Value<String> claimedAt;
+  final Value<int> rowid;
+  const BattleRewardsClaimedCompanion({
+    this.battleId = const Value.absent(),
+    this.milestone = const Value.absent(),
+    this.claimedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BattleRewardsClaimedCompanion.insert({
+    required String battleId,
+    required int milestone,
+    required String claimedAt,
+    this.rowid = const Value.absent(),
+  }) : battleId = Value(battleId),
+       milestone = Value(milestone),
+       claimedAt = Value(claimedAt);
+  static Insertable<BattleRewardsClaimedData> custom({
+    Expression<String>? battleId,
+    Expression<int>? milestone,
+    Expression<String>? claimedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (battleId != null) 'battle_id': battleId,
+      if (milestone != null) 'milestone': milestone,
+      if (claimedAt != null) 'claimed_at': claimedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BattleRewardsClaimedCompanion copyWith({
+    Value<String>? battleId,
+    Value<int>? milestone,
+    Value<String>? claimedAt,
+    Value<int>? rowid,
+  }) {
+    return BattleRewardsClaimedCompanion(
+      battleId: battleId ?? this.battleId,
+      milestone: milestone ?? this.milestone,
+      claimedAt: claimedAt ?? this.claimedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (battleId.present) {
+      map['battle_id'] = Variable<String>(battleId.value);
+    }
+    if (milestone.present) {
+      map['milestone'] = Variable<int>(milestone.value);
+    }
+    if (claimedAt.present) {
+      map['claimed_at'] = Variable<String>(claimedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BattleRewardsClaimedCompanion(')
+          ..write('battleId: $battleId, ')
+          ..write('milestone: $milestone, ')
+          ..write('claimedAt: $claimedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDb extends GeneratedDatabase {
   _$AppDb(QueryExecutor e) : super(e);
   $AppDbManager get managers => $AppDbManager(this);
@@ -1181,6 +1457,8 @@ abstract class _$AppDb extends GeneratedDatabase {
   late final $UserSettingsTable userSettings = $UserSettingsTable(this);
   late final $EquippedCosmeticsTable equippedCosmetics =
       $EquippedCosmeticsTable(this);
+  late final $BattleRewardsClaimedTable battleRewardsClaimed =
+      $BattleRewardsClaimedTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1190,6 +1468,7 @@ abstract class _$AppDb extends GeneratedDatabase {
     habitCompletions,
     userSettings,
     equippedCosmetics,
+    battleRewardsClaimed,
   ];
 }
 
@@ -2110,6 +2389,184 @@ typedef $$EquippedCosmeticsTableProcessedTableManager =
       EquippedCosmetic,
       PrefetchHooks Function()
     >;
+typedef $$BattleRewardsClaimedTableCreateCompanionBuilder =
+    BattleRewardsClaimedCompanion Function({
+      required String battleId,
+      required int milestone,
+      required String claimedAt,
+      Value<int> rowid,
+    });
+typedef $$BattleRewardsClaimedTableUpdateCompanionBuilder =
+    BattleRewardsClaimedCompanion Function({
+      Value<String> battleId,
+      Value<int> milestone,
+      Value<String> claimedAt,
+      Value<int> rowid,
+    });
+
+class $$BattleRewardsClaimedTableFilterComposer
+    extends Composer<_$AppDb, $BattleRewardsClaimedTable> {
+  $$BattleRewardsClaimedTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get battleId => $composableBuilder(
+    column: $table.battleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get milestone => $composableBuilder(
+    column: $table.milestone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get claimedAt => $composableBuilder(
+    column: $table.claimedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$BattleRewardsClaimedTableOrderingComposer
+    extends Composer<_$AppDb, $BattleRewardsClaimedTable> {
+  $$BattleRewardsClaimedTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get battleId => $composableBuilder(
+    column: $table.battleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get milestone => $composableBuilder(
+    column: $table.milestone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get claimedAt => $composableBuilder(
+    column: $table.claimedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$BattleRewardsClaimedTableAnnotationComposer
+    extends Composer<_$AppDb, $BattleRewardsClaimedTable> {
+  $$BattleRewardsClaimedTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get battleId =>
+      $composableBuilder(column: $table.battleId, builder: (column) => column);
+
+  GeneratedColumn<int> get milestone =>
+      $composableBuilder(column: $table.milestone, builder: (column) => column);
+
+  GeneratedColumn<String> get claimedAt =>
+      $composableBuilder(column: $table.claimedAt, builder: (column) => column);
+}
+
+class $$BattleRewardsClaimedTableTableManager
+    extends
+        RootTableManager<
+          _$AppDb,
+          $BattleRewardsClaimedTable,
+          BattleRewardsClaimedData,
+          $$BattleRewardsClaimedTableFilterComposer,
+          $$BattleRewardsClaimedTableOrderingComposer,
+          $$BattleRewardsClaimedTableAnnotationComposer,
+          $$BattleRewardsClaimedTableCreateCompanionBuilder,
+          $$BattleRewardsClaimedTableUpdateCompanionBuilder,
+          (
+            BattleRewardsClaimedData,
+            BaseReferences<
+              _$AppDb,
+              $BattleRewardsClaimedTable,
+              BattleRewardsClaimedData
+            >,
+          ),
+          BattleRewardsClaimedData,
+          PrefetchHooks Function()
+        > {
+  $$BattleRewardsClaimedTableTableManager(
+    _$AppDb db,
+    $BattleRewardsClaimedTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BattleRewardsClaimedTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BattleRewardsClaimedTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$BattleRewardsClaimedTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> battleId = const Value.absent(),
+                Value<int> milestone = const Value.absent(),
+                Value<String> claimedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BattleRewardsClaimedCompanion(
+                battleId: battleId,
+                milestone: milestone,
+                claimedAt: claimedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String battleId,
+                required int milestone,
+                required String claimedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => BattleRewardsClaimedCompanion.insert(
+                battleId: battleId,
+                milestone: milestone,
+                claimedAt: claimedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$BattleRewardsClaimedTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDb,
+      $BattleRewardsClaimedTable,
+      BattleRewardsClaimedData,
+      $$BattleRewardsClaimedTableFilterComposer,
+      $$BattleRewardsClaimedTableOrderingComposer,
+      $$BattleRewardsClaimedTableAnnotationComposer,
+      $$BattleRewardsClaimedTableCreateCompanionBuilder,
+      $$BattleRewardsClaimedTableUpdateCompanionBuilder,
+      (
+        BattleRewardsClaimedData,
+        BaseReferences<
+          _$AppDb,
+          $BattleRewardsClaimedTable,
+          BattleRewardsClaimedData
+        >,
+      ),
+      BattleRewardsClaimedData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDbManager {
   final _$AppDb _db;
@@ -2122,4 +2579,6 @@ class $AppDbManager {
       $$UserSettingsTableTableManager(_db, _db.userSettings);
   $$EquippedCosmeticsTableTableManager get equippedCosmetics =>
       $$EquippedCosmeticsTableTableManager(_db, _db.equippedCosmetics);
+  $$BattleRewardsClaimedTableTableManager get battleRewardsClaimed =>
+      $$BattleRewardsClaimedTableTableManager(_db, _db.battleRewardsClaimed);
 }
