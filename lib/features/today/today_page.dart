@@ -1,4 +1,8 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import '../../db/app_db.dart';
 import '../../services/audio_service.dart';
 import '../../shared/habit_utils.dart';
@@ -92,8 +96,17 @@ class _TodayPageState extends State<TodayPage> {
     var bestCurrent = 0;
     var bestStreak = 0;
 
+    final statsById = await widget.repo.getStreakStatsForHabits(habits);
+
     for (final h in habits) {
-      final stats = await widget.repo.getStreakStats(h.id);
+      final stats = statsById[h.id] ??
+          const StreakStats(
+            current: 0,
+            longest: 0,
+            totalCompletions: 0,
+            lastLocalDay: null,
+            completedToday: false,
+          );
       if (stats.current > bestCurrent) bestCurrent = stats.current;
       if (stats.longest > bestStreak) bestStreak = stats.longest;
 
@@ -109,7 +122,7 @@ class _TodayPageState extends State<TodayPage> {
       rows.add(_HabitRowVm(habit: h, stats: stats, subtitle: subtitle));
     }
 
-    final totalCompletions = await widget.repo.getTotalCompletions();
+    final totalCompletions = await widget.repo.getTotalCompletionsCount();
     final xp = await widget.repo.computeTotalXp();
     final xpGoal = xpGoalFor(xp);
     final gold = totalCompletions * 10 + 250;
@@ -213,6 +226,103 @@ class _TodayPageState extends State<TodayPage> {
     widget.onDataChanged();
   }
 
+  Future<void> _pickIconForHabit(Habit habit) async {
+    final scheme = Theme.of(context).colorScheme;
+    final tokens = Theme.of(context).extension<GameTokens>()!;
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: scheme.surface,
+      builder: (_) {
+        final options = habitIconOptions;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Choose icon',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  itemCount: options.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                  ),
+                  itemBuilder: (context, index) {
+                    final option = options[index];
+                    final isSelected = habit.iconId == option.id;
+                    final color = toneColor(option.tone, scheme, tokens);
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => Navigator.pop(context, option.id),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: scheme.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isSelected ? scheme.primary : scheme.outline,
+                            width: isSelected ? 2 : 1,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(option.icon, color: color),
+                            const SizedBox(height: 6),
+                            Text(
+                              option.label,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (selected == null || selected == habit.iconId) return;
+    if (selected == 'custom') {
+      await _pickCustomIcon(habit);
+      return;
+    }
+    await widget.repo.updateHabitIcon(habit.id, selected);
+    await _refresh();
+    widget.onDataChanged();
+  }
+
+  Future<void> _pickCustomIcon(Habit habit) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp'],
+    );
+    final path = result?.files.single.path;
+    if (path == null) return;
+    final dir = await getApplicationDocumentsDirectory();
+    final ext = p.extension(path);
+    final targetDir = p.join(dir.path, 'custom_icons');
+    await Directory(targetDir).create(recursive: true);
+    final targetPath = p.join(targetDir, '${habit.id}$ext');
+    await File(path).copy(targetPath);
+    await widget.repo.updateHabitCustomIcon(habit.id, targetPath);
+    await _refresh();
+    widget.onDataChanged();
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -256,10 +366,16 @@ class _TodayPageState extends State<TodayPage> {
                           children: [
                             _TopBar(onRefresh: _refresh),
                             const SizedBox(height: 14),
-                            _ProfileHeader(
-                              level: vm.level,
-                              rankTitle: rankTitleForLevel(vm.level),
-                              rankSubtitle: 'Gold Tier Rank',
+                            Builder(
+                              builder: (context) {
+                                final rankTitle = rankTitleForLevel(vm.level);
+                                return _ProfileHeader(
+                                  level: vm.level,
+                                  rankTitle: rankTitle,
+                                  rankSubtitle: '$rankTitle Tier Rank',
+                                  rankIcon: rankIconForLevel(vm.level),
+                                );
+                              },
                             ),
                             const SizedBox(height: 16),
                             _ExperienceCard(
@@ -305,6 +421,7 @@ class _TodayPageState extends State<TodayPage> {
                                         widget.audio.play(SoundEvent.complete);
                                       }
                                     },
+                                    onIconTap: () => _pickIconForHabit(row.habit),
                                     onTap: () async {
                                       await Navigator.push(
                                         context,
@@ -354,6 +471,7 @@ class _TodayPageState extends State<TodayPage> {
                                     urgent: false,
                                     onComplete: null,
                                     actionLabel: 'Not today',
+                                    onIconTap: () => _pickIconForHabit(row.habit),
                                     onTap: () async {
                                       await Navigator.push(
                                         context,
@@ -393,22 +511,8 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(2),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: scheme.primary, width: 2),
-          ),
-          child: CircleAvatar(
-            radius: 18,
-            backgroundImage: NetworkImage('https://i.imgur.com/4Z7wG2x.png'),
-            backgroundColor: scheme.surface,
-          ),
-        ),
-        const SizedBox(width: 12),
         const Expanded(
           child: Text(
             'Quest Board',
@@ -416,8 +520,9 @@ class _TopBar extends StatelessWidget {
           ),
         ),
         _IconCircleButton(
-          icon: Icons.notifications_rounded,
+          icon: Icons.refresh_rounded,
           onPressed: onRefresh,
+          tooltip: 'Refresh',
         ),
       ],
     );
@@ -429,11 +534,13 @@ class _ProfileHeader extends StatelessWidget {
     required this.level,
     required this.rankTitle,
     required this.rankSubtitle,
+    required this.rankIcon,
   });
 
   final int level;
   final String rankTitle;
   final String rankSubtitle;
+  final IconData rankIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -456,9 +563,10 @@ class _ProfileHeader extends StatelessWidget {
                     offset: const Offset(0, 6),
                   ),
                 ],
-                image: const DecorationImage(
-                  image: NetworkImage('https://i.imgur.com/Q7R4N7f.png'),
+                image: DecorationImage(
+                  image: const NetworkImage('https://i.imgur.com/Q7R4N7f.png'),
                   fit: BoxFit.cover,
+                  onError: (_, _) {},
                 ),
               ),
             ),
@@ -523,7 +631,7 @@ class _ProfileHeader extends StatelessWidget {
                       color: scheme.tertiary,
                     ),
                     child: Icon(
-                      Icons.star_rounded,
+                      rankIcon,
                       size: 12,
                       color: scheme.onTertiary,
                     ),
@@ -758,6 +866,7 @@ class _QuestCard extends StatelessWidget {
     required this.onComplete,
     this.actionLabel,
     required this.onTap,
+    required this.onIconTap,
   });
 
   final _HabitRowVm row;
@@ -767,13 +876,20 @@ class _QuestCard extends StatelessWidget {
   final VoidCallback? onComplete;
   final String? actionLabel;
   final VoidCallback onTap;
+  final VoidCallback onIconTap;
 
   @override
   Widget build(BuildContext context) {
-    final icon = iconForHabit(row.habit.name);
+    final icon = iconForHabit(row.habit.iconId, row.habit.name);
     final scheme = Theme.of(context).colorScheme;
     final tokens = Theme.of(context).extension<GameTokens>()!;
-    final iconColor = iconColorForHabit(row.habit.name, tokens);
+    final iconColor = iconColorForHabit(
+      row.habit.iconId,
+      row.habit.name,
+      scheme,
+      tokens,
+    );
+    final customPath = row.habit.iconPath;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -784,17 +900,13 @@ class _QuestCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Stack(
             children: [
-              Positioned(
-                top: -6,
-                right: -6,
+              Align(
+                alignment: Alignment.topRight,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: tokens.xpBadgeBg,
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(16),
-                      topRight: Radius.circular(20),
-                    ),
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: scheme.outline),
                   ),
                   child: Text(
@@ -813,15 +925,23 @@ class _QuestCard extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: scheme.surface,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: scheme.outline),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(18),
+                        onTap: onIconTap,
+                        child: Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: scheme.surface,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: scheme.outline),
+                          ),
+                          child: _HabitIcon(
+                            icon: icon,
+                            iconColor: iconColor,
+                            imagePath: customPath,
+                          ),
                         ),
-                        child: Icon(icon, size: 30, color: iconColor),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -976,11 +1096,46 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
+class _HabitIcon extends StatelessWidget {
+  const _HabitIcon({
+    required this.icon,
+    required this.iconColor,
+    required this.imagePath,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String? imagePath;
+
+  @override
+  Widget build(BuildContext context) {
+    final path = imagePath?.trim() ?? '';
+    if (path.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Image.file(
+          File(path),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stack) {
+            return Icon(icon, size: 30, color: iconColor);
+          },
+        ),
+      );
+    }
+    return Icon(icon, size: 30, color: iconColor);
+  }
+}
+
 class _IconCircleButton extends StatelessWidget {
-  const _IconCircleButton({required this.icon, required this.onPressed});
+  const _IconCircleButton({
+    required this.icon,
+    required this.onPressed,
+    this.tooltip,
+  });
 
   final IconData icon;
   final VoidCallback onPressed;
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -995,7 +1150,13 @@ class _IconCircleButton extends StatelessWidget {
         child: SizedBox(
           width: 42,
           height: 42,
-          child: Icon(icon, size: 22, color: scheme.onSurface),
+          child: tooltip == null
+              ? Icon(icon, size: 22, color: scheme.onSurface)
+              : Tooltip(
+                  message: tooltip!,
+                  waitDuration: const Duration(milliseconds: 400),
+                  child: Icon(icon, size: 22, color: scheme.onSurface),
+                ),
         ),
       ),
     );
@@ -1021,7 +1182,210 @@ bool isUrgent(Habit habit, StreakStats stats) {
   return stats.current == 0;
 }
 
-IconData iconForHabit(String name) {
+enum HabitIconTone {
+  water,
+  read,
+  sleep,
+  run,
+  lift,
+  neutral,
+  primary,
+  secondary,
+  tertiary,
+  error,
+}
+
+class HabitIconOption {
+  const HabitIconOption({
+    required this.id,
+    required this.label,
+    required this.icon,
+    required this.tone,
+  });
+
+  final String id;
+  final String label;
+  final IconData icon;
+  final HabitIconTone tone;
+}
+
+const List<HabitIconOption> habitIconOptions = [
+  HabitIconOption(
+    id: 'magic',
+    label: 'Magic',
+    icon: Icons.auto_awesome_rounded,
+    tone: HabitIconTone.primary,
+  ),
+  HabitIconOption(
+    id: 'custom',
+    label: 'Custom',
+    icon: Icons.add_photo_alternate_rounded,
+    tone: HabitIconTone.neutral,
+  ),
+  HabitIconOption(
+    id: 'battle',
+    label: 'Battle',
+    icon: Icons.sports_martial_arts_rounded,
+    tone: HabitIconTone.error,
+  ),
+  HabitIconOption(
+    id: 'shield',
+    label: 'Shield',
+    icon: Icons.shield_rounded,
+    tone: HabitIconTone.secondary,
+  ),
+  HabitIconOption(
+    id: 'sword',
+    label: 'Blade',
+    icon: Icons.gavel_rounded,
+    tone: HabitIconTone.tertiary,
+  ),
+  HabitIconOption(
+    id: 'fire',
+    label: 'Fire',
+    icon: Icons.local_fire_department_rounded,
+    tone: HabitIconTone.error,
+  ),
+  HabitIconOption(
+    id: 'bolt',
+    label: 'Bolt',
+    icon: Icons.flash_on_rounded,
+    tone: HabitIconTone.tertiary,
+  ),
+  HabitIconOption(
+    id: 'skull',
+    label: 'Skull',
+    icon: Icons.emoji_nature_rounded,
+    tone: HabitIconTone.error,
+  ),
+  HabitIconOption(
+    id: 'potion',
+    label: 'Potion',
+    icon: Icons.local_drink_rounded,
+    tone: HabitIconTone.secondary,
+  ),
+  HabitIconOption(
+    id: 'alchemy',
+    label: 'Alchemy',
+    icon: Icons.science_rounded,
+    tone: HabitIconTone.tertiary,
+  ),
+  HabitIconOption(
+    id: 'map',
+    label: 'Map',
+    icon: Icons.map_rounded,
+    tone: HabitIconTone.primary,
+  ),
+  HabitIconOption(
+    id: 'camp',
+    label: 'Camp',
+    icon: Icons.park_rounded,
+    tone: HabitIconTone.secondary,
+  ),
+  HabitIconOption(
+    id: 'coin',
+    label: 'Coin',
+    icon: Icons.monetization_on_rounded,
+    tone: HabitIconTone.tertiary,
+  ),
+  HabitIconOption(
+    id: 'crown',
+    label: 'Crown',
+    icon: Icons.emoji_events_rounded,
+    tone: HabitIconTone.primary,
+  ),
+  HabitIconOption(
+    id: 'quest',
+    label: 'Quest',
+    icon: Icons.flag_rounded,
+    tone: HabitIconTone.secondary,
+  ),
+  HabitIconOption(
+    id: 'scroll',
+    label: 'Scroll',
+    icon: Icons.description_rounded,
+    tone: HabitIconTone.tertiary,
+  ),
+  HabitIconOption(
+    id: 'water',
+    label: 'Water',
+    icon: Icons.water_drop_rounded,
+    tone: HabitIconTone.water,
+  ),
+  HabitIconOption(
+    id: 'read',
+    label: 'Read',
+    icon: Icons.menu_book_rounded,
+    tone: HabitIconTone.read,
+  ),
+  HabitIconOption(
+    id: 'sleep',
+    label: 'Sleep',
+    icon: Icons.bedtime_rounded,
+    tone: HabitIconTone.sleep,
+  ),
+  HabitIconOption(
+    id: 'run',
+    label: 'Run',
+    icon: Icons.directions_run_rounded,
+    tone: HabitIconTone.run,
+  ),
+  HabitIconOption(
+    id: 'lift',
+    label: 'Lift',
+    icon: Icons.fitness_center_rounded,
+    tone: HabitIconTone.lift,
+  ),
+  HabitIconOption(
+    id: 'meditate',
+    label: 'Mind',
+    icon: Icons.self_improvement_rounded,
+    tone: HabitIconTone.secondary,
+  ),
+  HabitIconOption(
+    id: 'focus',
+    label: 'Focus',
+    icon: Icons.center_focus_strong_rounded,
+    tone: HabitIconTone.primary,
+  ),
+  HabitIconOption(
+    id: 'heart',
+    label: 'Heart',
+    icon: Icons.favorite_rounded,
+    tone: HabitIconTone.error,
+  ),
+  HabitIconOption(
+    id: 'food',
+    label: 'Food',
+    icon: Icons.restaurant_rounded,
+    tone: HabitIconTone.tertiary,
+  ),
+  HabitIconOption(
+    id: 'music',
+    label: 'Music',
+    icon: Icons.music_note_rounded,
+    tone: HabitIconTone.primary,
+  ),
+  HabitIconOption(
+    id: 'code',
+    label: 'Code',
+    icon: Icons.code_rounded,
+    tone: HabitIconTone.tertiary,
+  ),
+  HabitIconOption(
+    id: 'craft',
+    label: 'Craft',
+    icon: Icons.build_rounded,
+    tone: HabitIconTone.secondary,
+  ),
+];
+
+IconData iconForHabit(String? iconId, String name) {
+  final id = iconId?.trim();
+  if (id != null && id.isNotEmpty) {
+    final match = habitIconOptions.where((o) => o.id == id);
+    if (match.isNotEmpty) return match.first.icon;
+  }
   final lower = name.toLowerCase();
   if (lower.contains('run') || lower.contains('cardio')) {
     return Icons.directions_run_rounded;
@@ -1042,7 +1406,53 @@ IconData iconForHabit(String name) {
   return Icons.auto_awesome_rounded;
 }
 
-Color iconColorForHabit(String name, GameTokens tokens) {
+IconData rankIconForLevel(int level) {
+  if (level <= 5) return Icons.emoji_events_rounded; // Bronze
+  if (level <= 10) return Icons.shield_rounded; // Silver
+  if (level <= 20) return Icons.star_rounded; // Gold
+  if (level <= 30) return Icons.workspace_premium_rounded; // Platinum
+  if (level <= 45) return Icons.auto_awesome_rounded; // Diamond
+  return Icons.whatshot_rounded; // Mythic
+}
+
+Color toneColor(HabitIconTone tone, ColorScheme scheme, GameTokens tokens) {
+  switch (tone) {
+    case HabitIconTone.water:
+      return tokens.habitWater;
+    case HabitIconTone.read:
+      return tokens.habitRead;
+    case HabitIconTone.sleep:
+      return tokens.habitSleep;
+    case HabitIconTone.run:
+      return tokens.habitRun;
+    case HabitIconTone.lift:
+      return tokens.habitLift;
+    case HabitIconTone.primary:
+      return scheme.primary;
+    case HabitIconTone.secondary:
+      return scheme.secondary;
+    case HabitIconTone.tertiary:
+      return scheme.tertiary;
+    case HabitIconTone.error:
+      return scheme.error;
+    case HabitIconTone.neutral:
+      return tokens.habitDefault;
+  }
+}
+
+Color iconColorForHabit(
+  String? iconId,
+  String name,
+  ColorScheme scheme,
+  GameTokens tokens,
+) {
+  final id = iconId?.trim();
+  if (id != null && id.isNotEmpty) {
+    final match = habitIconOptions.where((o) => o.id == id);
+    if (match.isNotEmpty) {
+      return toneColor(match.first.tone, scheme, tokens);
+    }
+  }
   final lower = name.toLowerCase();
   if (lower.contains('water') || lower.contains('hydrate')) {
     return tokens.habitWater;

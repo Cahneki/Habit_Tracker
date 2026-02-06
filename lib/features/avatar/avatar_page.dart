@@ -69,11 +69,11 @@ class _AvatarPageState extends State<AvatarPage> {
     final level = levelForXp(xp);
     final xpGoal = xpGoalFor(xp);
     final xpToNext = xpGoal - xp;
-    final totalCompletions = await widget.repo.getTotalCompletions();
+    final totalCompletions = await widget.repo.getTotalCompletionsCount();
     final habits = await widget.repo.listHabits();
+    final statsById = await widget.repo.getStreakStatsForHabits(habits);
     var bestStreak = 0;
-    for (final h in habits) {
-      final stats = await widget.repo.getStreakStats(h.id);
+    for (final stats in statsById.values) {
       if (stats.longest > bestStreak) bestStreak = stats.longest;
     }
     final equipped = await widget.avatarRepo.getEquipped();

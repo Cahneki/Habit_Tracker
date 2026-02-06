@@ -106,13 +106,13 @@ class _StatsPageState extends State<StatsPage> {
     var bestCurrent = 0;
     var bestStreak = 0;
 
-    for (final h in habits) {
-      final stats = await widget.repo.getStreakStats(h.id);
+    final statsById = await widget.repo.getStreakStatsForHabits(habits);
+    for (final stats in statsById.values) {
       if (stats.current > bestCurrent) bestCurrent = stats.current;
       if (stats.longest > bestStreak) bestStreak = stats.longest;
     }
 
-    final totalCompletions = await widget.repo.getTotalCompletions();
+    final totalCompletions = await widget.repo.getTotalCompletionsCount();
     final xp = await widget.repo.computeTotalXp();
     final level = levelForXp(xp);
 

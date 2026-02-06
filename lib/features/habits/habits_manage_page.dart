@@ -235,7 +235,47 @@ class _HabitsManagePageState extends State<HabitsManagePage> {
               ),
               const SizedBox(height: 8),
               if (vm.active.isEmpty)
-                const Text('No active habits.')
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'No active habits yet',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Tap + to add your first habit.',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 40,
+                          child: ElevatedButton(
+                            onPressed: _createHabit,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: scheme.primary,
+                              foregroundColor: scheme.onPrimary,
+                              shape: const StadiumBorder(),
+                              textStyle:
+                                  const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                            child: const Text('Add Habit'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
               else
                 ...vm.active.map(
                   (habit) => Card(
@@ -268,7 +308,19 @@ class _HabitsManagePageState extends State<HabitsManagePage> {
               ),
               const SizedBox(height: 8),
               if (vm.archived.isEmpty)
-                const Text('No archived habits.')
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'No archived habits.',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                  ),
+                )
               else
                 ...vm.archived.map(
                   (habit) => Card(

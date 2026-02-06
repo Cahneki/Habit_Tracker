@@ -18,9 +18,10 @@ part 'app_db.g.dart';
 ])
 class AppDb extends _$AppDb {
   AppDb() : super(_openConnection());
+  AppDb.test(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -59,6 +60,40 @@ class AppDb extends _$AppDb {
           }
           if (from < 7) {
             await migrator.addColumn(userSettings, userSettings.themeId);
+          }
+          if (from < 8) {
+            await migrator.addColumn(
+              userSettings,
+              userSettings.soundCompleteId,
+            );
+            await migrator.addColumn(
+              userSettings,
+              userSettings.soundLevelUpId,
+            );
+            await migrator.addColumn(
+              userSettings,
+              userSettings.soundEquipId,
+            );
+          }
+          if (from < 9) {
+            await migrator.addColumn(
+              userSettings,
+              userSettings.soundCompletePath,
+            );
+            await migrator.addColumn(
+              userSettings,
+              userSettings.soundLevelUpPath,
+            );
+            await migrator.addColumn(
+              userSettings,
+              userSettings.soundEquipPath,
+            );
+          }
+          if (from < 10) {
+            await migrator.addColumn(habits, habits.iconId);
+          }
+          if (from < 11) {
+            await migrator.addColumn(habits, habits.iconPath);
           }
         },
       );

@@ -18,7 +18,9 @@ void main() {
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, this.db});
+
+  final AppDb? db;
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -26,6 +28,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   late final AppDb db;
+  late final bool _ownsDb;
   late final HabitRepository repo;
   late final SettingsRepository settingsRepo;
   late final AvatarRepository avatarRepo;
@@ -36,7 +39,13 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    db = AppDb();
+    if (widget.db != null) {
+      db = widget.db!;
+      _ownsDb = false;
+    } else {
+      db = AppDb();
+      _ownsDb = true;
+    }
     repo = HabitRepository(db);
     settingsRepo = SettingsRepository(db);
     avatarRepo = AvatarRepository(db);
@@ -47,7 +56,9 @@ class _MyAppState extends State<MyApp> {
 
   @override
   void dispose() {
-    db.close();
+    if (_ownsDb) {
+      db.close();
+    }
     super.dispose();
   }
 
@@ -169,11 +180,11 @@ class _HomeScaffoldState extends State<HomeScaffold> {
         showUnselectedLabels: true,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.today_rounded),
+            icon: Icon(Icons.map_rounded),
             label: 'Today',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.assignment_rounded),
+            icon: Icon(Icons.menu_book_rounded),
             label: 'Habits',
           ),
           BottomNavigationBarItem(
@@ -181,11 +192,11 @@ class _HomeScaffoldState extends State<HomeScaffold> {
             label: 'Battles',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.backpack_rounded),
+            icon: Icon(Icons.shield_rounded),
             label: 'Avatar',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings_rounded),
+            icon: Icon(Icons.tune_rounded),
             label: 'Settings',
           ),
         ],

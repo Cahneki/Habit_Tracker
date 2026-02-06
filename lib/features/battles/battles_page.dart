@@ -93,6 +93,7 @@ class _BattlesPageState extends State<BattlesPage> {
     required double bonusPct,
   }) {
     final scheme = Theme.of(context).colorScheme;
+    final hasSchedule = stats.scheduledTotal > 0 && stats.hp > 0;
     final percent = (stats.progressPct * 100).round();
     final densityPct = (stats.density * 100).round();
     final xpBonus = (stats.earnedXpWindow * bonusPct).round();
@@ -116,55 +117,62 @@ class _BattlesPageState extends State<BattlesPage> {
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              'Damage ${stats.damage} / ${stats.hp}',
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: stats.progressPct,
-                minHeight: 10,
-                backgroundColor: scheme.surface,
-                color: scheme.primary,
+            if (!hasSchedule) ...[
+              Text(
+                'No scheduled habits in this window.',
+                style: TextStyle(color: scheme.onSurfaceVariant),
               ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Text('$percent% complete'),
-                const Spacer(),
-                Text(
-                  'Density: $densityPct% (${stats.completedTotal}/${stats.scheduledTotal})',
+            ] else ...[
+              Text(
+                'Damage ${stats.damage} / ${stats.hp}',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: stats.progressPct,
+                  minHeight: 10,
+                  backgroundColor: scheme.surface,
+                  color: scheme.primary,
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'XP bonus: +$xpBonus total (claimable)',
-              style: TextStyle(color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [50, 75, 100].map((m) {
-                final eligible = stats.progressPct + epsilon >= (m / 100.0);
-                final isClaimed = claimed.contains(m);
-                final label =
-                    isClaimed ? 'Claimed' : (eligible ? 'Claim' : 'Locked');
-                return SizedBox(
-                  height: 34,
-                  child: OutlinedButton(
-                    onPressed: eligible && !isClaimed
-                        ? () => _claim(stats, m, bonusPct)
-                        : null,
-                    child: Text('$m% $label'),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Text('$percent% complete'),
+                  const Spacer(),
+                  Text(
+                    'Density: $densityPct% (${stats.completedTotal}/${stats.scheduledTotal})',
                   ),
-                );
-              }).toList(),
-            ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'XP bonus: +$xpBonus total (claimable)',
+                style: TextStyle(color: scheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [50, 75, 100].map((m) {
+                  final eligible = stats.progressPct + epsilon >= (m / 100.0);
+                  final isClaimed = claimed.contains(m);
+                  final label =
+                      isClaimed ? 'Claimed' : (eligible ? 'Claim' : 'Locked');
+                  return SizedBox(
+                    height: 34,
+                    child: OutlinedButton(
+                      onPressed: eligible && !isClaimed
+                          ? () => _claim(stats, m, bonusPct)
+                          : null,
+                      child: Text('$m% $label'),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
           ],
         ),
       ),

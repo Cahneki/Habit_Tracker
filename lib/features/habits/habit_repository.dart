@@ -35,6 +35,15 @@ class HabitRepository {
   HabitRepository(this.db);
   final AppDb db;
   final Map<String, Map<String, Set<String>>> _completionRangeCache = {};
+  int _cacheVersion = 0;
+  String _streakStatsCacheKey = '';
+  int _streakStatsCacheVersion = -1;
+  Map<String, StreakStats> _streakStatsCache = {};
+  int _totalCompletionsCacheVersion = -1;
+  int? _totalCompletionsCache;
+  int _xpCacheVersion = -1;
+  int? _xpCache;
+  int _xpEventsTotalCache = 0;
 
   DateTime _parseLocalDay(String s) {
     final y = int.parse(s.substring(0, 4));
@@ -54,8 +63,14 @@ class HabitRepository {
     return mask == null || mask == 0x7f;
   }
 
-  void _clearCompletionRangeCache() {
+  void _invalidateDerivedCaches() {
+    _cacheVersion += 1;
     _completionRangeCache.clear();
+  }
+
+  String _streakStatsKey(List<Habit> habits) {
+    final ids = habits.map((h) => h.id).toList()..sort();
+    return ids.join(',');
   }
 
   String _rangeKey(DateTime start, DateTime endExclusive, List<String>? habitIds) {
@@ -83,6 +98,8 @@ class HabitRepository {
     required String name,
     required int scheduleMask,
     int baseXp = 20,
+    String iconId = 'magic',
+    String iconPath = '',
   }) async {
     final now = DateTime.now();
     await db.into(db.habits).insert(
@@ -93,8 +110,11 @@ class HabitRepository {
             createdAt: now.millisecondsSinceEpoch,
             archivedAt: const Value.absent(),
             scheduleMask: Value(scheduleMask),
+            iconId: Value(iconId),
+            iconPath: Value(iconPath),
           ),
         );
+    _invalidateDerivedCaches();
   }
 
   Future<void> renameHabit(String habitId, String name) async {
@@ -107,6 +127,25 @@ class HabitRepository {
     await (db.update(db.habits)..where((h) => h.id.equals(habitId))).write(
       HabitsCompanion(scheduleMask: Value(scheduleMask)),
     );
+    _invalidateDerivedCaches();
+  }
+
+  Future<void> updateHabitIcon(String habitId, String iconId) async {
+    await (db.update(db.habits)..where((h) => h.id.equals(habitId))).write(
+      HabitsCompanion(
+        iconId: Value(iconId),
+        iconPath: const Value(''),
+      ),
+    );
+  }
+
+  Future<void> updateHabitCustomIcon(String habitId, String path) async {
+    await (db.update(db.habits)..where((h) => h.id.equals(habitId))).write(
+      HabitsCompanion(
+        iconId: const Value('custom'),
+        iconPath: Value(path),
+      ),
+    );
   }
 
   Future<void> archiveHabit(String habitId) async {
@@ -114,12 +153,14 @@ class HabitRepository {
     await (db.update(db.habits)..where((h) => h.id.equals(habitId))).write(
       HabitsCompanion(archivedAt: Value(now)),
     );
+    _invalidateDerivedCaches();
   }
 
   Future<void> unarchiveHabit(String habitId) async {
     await (db.update(db.habits)..where((h) => h.id.equals(habitId))).write(
       const HabitsCompanion(archivedAt: Value(null)),
     );
+    _invalidateDerivedCaches();
   }
 
   Future<void> deleteHabit(String habitId) async {
@@ -129,7 +170,7 @@ class HabitRepository {
           .go();
       await (db.delete(db.habits)..where((h) => h.id.equals(habitId))).go();
     });
-    _clearCompletionRangeCache();
+    _invalidateDerivedCaches();
   }
 
   Future<void> completeHabit(String habitId) async {
@@ -151,7 +192,7 @@ class HabitRepository {
             mode: InsertMode.insertOrIgnore,
           );
     });
-    _clearCompletionRangeCache();
+    _invalidateDerivedCaches();
   }
 
   Future<void> toggleCompletionForDay(String habitId, DateTime day) async {
@@ -179,7 +220,7 @@ class HabitRepository {
             ),
             mode: InsertMode.insertOrIgnore,
           );
-      _clearCompletionRangeCache();
+      _invalidateDerivedCaches();
       return;
     }
 
@@ -188,7 +229,7 @@ class HabitRepository {
             (c) => c.habitId.equals(habitId) & c.localDay.equals(localDayStr),
           ))
         .go();
-    _clearCompletionRangeCache();
+    _invalidateDerivedCaches();
   }
 
   Future<List<HabitDayStatus>> getHabitsForDate(DateTime date) async {
@@ -220,7 +261,20 @@ class HabitRepository {
           ..orderBy([(c) => OrderingTerm(expression: c.localDay)]))
         .get();
 
-    if (rows.isEmpty) {
+    final days = rows.map((r) => r.localDay).toList();
+    return _computeStreakStatsFromDays(
+      scheduleMask: scheduleMask,
+      days: days,
+      now: DateTime.now(),
+    );
+  }
+
+  StreakStats _computeStreakStatsFromDays({
+    required int? scheduleMask,
+    required List<String> days,
+    required DateTime now,
+  }) {
+    if (days.isEmpty) {
       return const StreakStats(
         current: 0,
         longest: 0,
@@ -230,11 +284,8 @@ class HabitRepository {
       );
     }
 
-    final days = rows.map((r) => r.localDay).toList();
     final total = days.length;
     final completedSet = days.toSet();
-
-    final now = DateTime.now();
     final todayStr = localDay(now);
     final completedToday = completedSet.contains(todayStr);
 
@@ -291,6 +342,47 @@ class HabitRepository {
       lastLocalDay: days.last,
       completedToday: completedToday,
     );
+  }
+
+  Future<Map<String, StreakStats>> getStreakStatsForHabits(
+    List<Habit> habits,
+  ) async {
+    if (habits.isEmpty) return {};
+    final key = _streakStatsKey(habits);
+    if (_streakStatsCacheVersion == _cacheVersion &&
+        _streakStatsCacheKey == key) {
+      return _streakStatsCache;
+    }
+
+    final habitIds = habits.map((h) => h.id).toList();
+    final rows = await (db.select(db.habitCompletions)
+          ..where((c) => c.habitId.isIn(habitIds))
+          ..orderBy([
+            (c) => OrderingTerm(expression: c.habitId),
+            (c) => OrderingTerm(expression: c.localDay),
+          ]))
+        .get();
+
+    final grouped = <String, List<String>>{};
+    for (final row in rows) {
+      grouped.putIfAbsent(row.habitId, () => []).add(row.localDay);
+    }
+
+    final now = DateTime.now();
+    final result = <String, StreakStats>{};
+    for (final habit in habits) {
+      final days = grouped[habit.id] ?? const <String>[];
+      result[habit.id] = _computeStreakStatsFromDays(
+        scheduleMask: habit.scheduleMask,
+        days: days,
+        now: now,
+      );
+    }
+
+    _streakStatsCacheKey = key;
+    _streakStatsCacheVersion = _cacheVersion;
+    _streakStatsCache = result;
+    return result;
   }
 
   Future<Set<String>> getCompletionDaysForRange(
@@ -355,6 +447,20 @@ class HabitRepository {
     return rows.length;
   }
 
+  Future<int> getTotalCompletionsCount() async {
+    if (_totalCompletionsCacheVersion == _cacheVersion &&
+        _totalCompletionsCache != null) {
+      return _totalCompletionsCache!;
+    }
+    final countExpr = db.habitCompletions.id.count();
+    final query = db.selectOnly(db.habitCompletions)..addColumns([countExpr]);
+    final row = await query.getSingle();
+    final total = row.read(countExpr) ?? 0;
+    _totalCompletionsCacheVersion = _cacheVersion;
+    _totalCompletionsCache = total;
+    return total;
+  }
+
   Future<int> getXpEventsTotal() async {
     final rows = await db.select(db.xpEvents).get();
     if (rows.isEmpty) return 0;
@@ -362,6 +468,12 @@ class HabitRepository {
   }
 
   Future<int> computeTotalXp() async {
+    final bonusXp = await getXpEventsTotal();
+    if (_xpCacheVersion == _cacheVersion &&
+        _xpCache != null &&
+        _xpEventsTotalCache == bonusXp) {
+      return _xpCache!;
+    }
     final habits = await listHabits();
     if (habits.isEmpty) return 0;
 
@@ -409,7 +521,10 @@ class HabitRepository {
       }
     }
 
-    final bonusXp = await getXpEventsTotal();
-    return totalXp + bonusXp;
+    final result = totalXp + bonusXp;
+    _xpCacheVersion = _cacheVersion;
+    _xpCache = result;
+    _xpEventsTotalCache = bonusXp;
+    return result;
   }
 }

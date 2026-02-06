@@ -8,9 +8,10 @@ int levelForXp(int xp) {
 }
 
 String rankTitleForLevel(int level) {
-  if (level < 5) return 'Wanderer';
-  if (level < 10) return 'Paladin Apprentice';
-  if (level < 15) return 'Knight Adept';
-  if (level < 20) return 'Paladin Captain';
-  return 'Legendary Hero';
+  if (level <= 5) return 'Bronze';
+  if (level <= 10) return 'Silver';
+  if (level <= 20) return 'Gold';
+  if (level <= 30) return 'Platinum';
+  if (level <= 45) return 'Diamond';
+  return 'Mythic';
 }

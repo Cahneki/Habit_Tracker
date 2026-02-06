@@ -7,6 +7,8 @@ class Habits extends Table {
   IntColumn get createdAt => integer()(); // epoch ms
   IntColumn get archivedAt => integer().nullable()(); // epoch ms
   IntColumn get scheduleMask => integer().nullable()(); // bitmask: 0=Mon .. 6=Sun
+  TextColumn get iconId => text().withDefault(const Constant('magic'))();
+  TextColumn get iconPath => text().withDefault(const Constant(''))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -31,6 +33,18 @@ class UserSettings extends Table {
   IntColumn get id => integer().withDefault(const Constant(1))();
   BoolColumn get soundEnabled => boolean().withDefault(const Constant(true))();
   TextColumn get soundPackId => text().withDefault(const Constant('system'))();
+  TextColumn get soundCompleteId =>
+      text().withDefault(const Constant('complete'))();
+  TextColumn get soundLevelUpId =>
+      text().withDefault(const Constant('level_up'))();
+  TextColumn get soundEquipId =>
+      text().withDefault(const Constant('equip'))();
+  TextColumn get soundCompletePath =>
+      text().withDefault(const Constant(''))();
+  TextColumn get soundLevelUpPath =>
+      text().withDefault(const Constant(''))();
+  TextColumn get soundEquipPath =>
+      text().withDefault(const Constant(''))();
   TextColumn get themeId => text().withDefault(const Constant('forest'))();
 
   @override

@@ -9,7 +9,14 @@ class SettingsRepository {
     final existing = await (db.select(db.userSettings)
           ..where((s) => s.id.equals(1)))
         .getSingleOrNull();
-    if (existing != null) return existing;
+    if (existing != null) {
+      if (existing.soundPackId == 'system' || existing.soundPackId == 'forest') {
+        await setSoundPack('interface');
+        return (db.select(db.userSettings)..where((s) => s.id.equals(1)))
+            .getSingle();
+      }
+      return existing;
+    }
 
     await db.into(db.userSettings).insert(
           const UserSettingsCompanion(id: Value(1)),
@@ -37,6 +44,72 @@ class SettingsRepository {
           UserSettingsCompanion(
             id: const Value(1),
             soundPackId: Value(packId),
+          ),
+        );
+  }
+
+  Future<void> setSoundCompleteId(String soundId) async {
+    await db
+        .into(db.userSettings)
+        .insertOnConflictUpdate(
+          UserSettingsCompanion(
+            id: const Value(1),
+            soundCompleteId: Value(soundId),
+          ),
+        );
+  }
+
+  Future<void> setSoundLevelUpId(String soundId) async {
+    await db
+        .into(db.userSettings)
+        .insertOnConflictUpdate(
+          UserSettingsCompanion(
+            id: const Value(1),
+            soundLevelUpId: Value(soundId),
+          ),
+        );
+  }
+
+  Future<void> setSoundEquipId(String soundId) async {
+    await db
+        .into(db.userSettings)
+        .insertOnConflictUpdate(
+          UserSettingsCompanion(
+            id: const Value(1),
+            soundEquipId: Value(soundId),
+          ),
+        );
+  }
+
+  Future<void> setSoundCompletePath(String path) async {
+    await db
+        .into(db.userSettings)
+        .insertOnConflictUpdate(
+          UserSettingsCompanion(
+            id: const Value(1),
+            soundCompletePath: Value(path),
+          ),
+        );
+  }
+
+  Future<void> setSoundLevelUpPath(String path) async {
+    await db
+        .into(db.userSettings)
+        .insertOnConflictUpdate(
+          UserSettingsCompanion(
+            id: const Value(1),
+            soundLevelUpPath: Value(path),
+          ),
+        );
+  }
+
+  Future<void> setSoundEquipPath(String path) async {
+    await db
+        .into(db.userSettings)
+        .insertOnConflictUpdate(
+          UserSettingsCompanion(
+            id: const Value(1),
+            soundEquipPath: Value(path),
           ),
         );
   }

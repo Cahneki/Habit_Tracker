@@ -69,6 +69,28 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _iconIdMeta = const VerificationMeta('iconId');
+  @override
+  late final GeneratedColumn<String> iconId = GeneratedColumn<String>(
+    'icon_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('magic'),
+  );
+  static const VerificationMeta _iconPathMeta = const VerificationMeta(
+    'iconPath',
+  );
+  @override
+  late final GeneratedColumn<String> iconPath = GeneratedColumn<String>(
+    'icon_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -77,6 +99,8 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     createdAt,
     archivedAt,
     scheduleMask,
+    iconId,
+    iconPath,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -132,6 +156,18 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         ),
       );
     }
+    if (data.containsKey('icon_id')) {
+      context.handle(
+        _iconIdMeta,
+        iconId.isAcceptableOrUnknown(data['icon_id']!, _iconIdMeta),
+      );
+    }
+    if (data.containsKey('icon_path')) {
+      context.handle(
+        _iconPathMeta,
+        iconPath.isAcceptableOrUnknown(data['icon_path']!, _iconPathMeta),
+      );
+    }
     return context;
   }
 
@@ -165,6 +201,14 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         DriftSqlType.int,
         data['${effectivePrefix}schedule_mask'],
       ),
+      iconId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_id'],
+      )!,
+      iconPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_path'],
+      )!,
     );
   }
 
@@ -181,6 +225,8 @@ class Habit extends DataClass implements Insertable<Habit> {
   final int createdAt;
   final int? archivedAt;
   final int? scheduleMask;
+  final String iconId;
+  final String iconPath;
   const Habit({
     required this.id,
     required this.name,
@@ -188,6 +234,8 @@ class Habit extends DataClass implements Insertable<Habit> {
     required this.createdAt,
     this.archivedAt,
     this.scheduleMask,
+    required this.iconId,
+    required this.iconPath,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -202,6 +250,8 @@ class Habit extends DataClass implements Insertable<Habit> {
     if (!nullToAbsent || scheduleMask != null) {
       map['schedule_mask'] = Variable<int>(scheduleMask);
     }
+    map['icon_id'] = Variable<String>(iconId);
+    map['icon_path'] = Variable<String>(iconPath);
     return map;
   }
 
@@ -217,6 +267,8 @@ class Habit extends DataClass implements Insertable<Habit> {
       scheduleMask: scheduleMask == null && nullToAbsent
           ? const Value.absent()
           : Value(scheduleMask),
+      iconId: Value(iconId),
+      iconPath: Value(iconPath),
     );
   }
 
@@ -232,6 +284,8 @@ class Habit extends DataClass implements Insertable<Habit> {
       createdAt: serializer.fromJson<int>(json['createdAt']),
       archivedAt: serializer.fromJson<int?>(json['archivedAt']),
       scheduleMask: serializer.fromJson<int?>(json['scheduleMask']),
+      iconId: serializer.fromJson<String>(json['iconId']),
+      iconPath: serializer.fromJson<String>(json['iconPath']),
     );
   }
   @override
@@ -244,6 +298,8 @@ class Habit extends DataClass implements Insertable<Habit> {
       'createdAt': serializer.toJson<int>(createdAt),
       'archivedAt': serializer.toJson<int?>(archivedAt),
       'scheduleMask': serializer.toJson<int?>(scheduleMask),
+      'iconId': serializer.toJson<String>(iconId),
+      'iconPath': serializer.toJson<String>(iconPath),
     };
   }
 
@@ -254,6 +310,8 @@ class Habit extends DataClass implements Insertable<Habit> {
     int? createdAt,
     Value<int?> archivedAt = const Value.absent(),
     Value<int?> scheduleMask = const Value.absent(),
+    String? iconId,
+    String? iconPath,
   }) => Habit(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -261,6 +319,8 @@ class Habit extends DataClass implements Insertable<Habit> {
     createdAt: createdAt ?? this.createdAt,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     scheduleMask: scheduleMask.present ? scheduleMask.value : this.scheduleMask,
+    iconId: iconId ?? this.iconId,
+    iconPath: iconPath ?? this.iconPath,
   );
   Habit copyWithCompanion(HabitsCompanion data) {
     return Habit(
@@ -274,6 +334,8 @@ class Habit extends DataClass implements Insertable<Habit> {
       scheduleMask: data.scheduleMask.present
           ? data.scheduleMask.value
           : this.scheduleMask,
+      iconId: data.iconId.present ? data.iconId.value : this.iconId,
+      iconPath: data.iconPath.present ? data.iconPath.value : this.iconPath,
     );
   }
 
@@ -285,14 +347,24 @@ class Habit extends DataClass implements Insertable<Habit> {
           ..write('baseXp: $baseXp, ')
           ..write('createdAt: $createdAt, ')
           ..write('archivedAt: $archivedAt, ')
-          ..write('scheduleMask: $scheduleMask')
+          ..write('scheduleMask: $scheduleMask, ')
+          ..write('iconId: $iconId, ')
+          ..write('iconPath: $iconPath')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, baseXp, createdAt, archivedAt, scheduleMask);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    baseXp,
+    createdAt,
+    archivedAt,
+    scheduleMask,
+    iconId,
+    iconPath,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -302,7 +374,9 @@ class Habit extends DataClass implements Insertable<Habit> {
           other.baseXp == this.baseXp &&
           other.createdAt == this.createdAt &&
           other.archivedAt == this.archivedAt &&
-          other.scheduleMask == this.scheduleMask);
+          other.scheduleMask == this.scheduleMask &&
+          other.iconId == this.iconId &&
+          other.iconPath == this.iconPath);
 }
 
 class HabitsCompanion extends UpdateCompanion<Habit> {
@@ -312,6 +386,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
   final Value<int> createdAt;
   final Value<int?> archivedAt;
   final Value<int?> scheduleMask;
+  final Value<String> iconId;
+  final Value<String> iconPath;
   final Value<int> rowid;
   const HabitsCompanion({
     this.id = const Value.absent(),
@@ -320,6 +396,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     this.createdAt = const Value.absent(),
     this.archivedAt = const Value.absent(),
     this.scheduleMask = const Value.absent(),
+    this.iconId = const Value.absent(),
+    this.iconPath = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   HabitsCompanion.insert({
@@ -329,6 +407,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     required int createdAt,
     this.archivedAt = const Value.absent(),
     this.scheduleMask = const Value.absent(),
+    this.iconId = const Value.absent(),
+    this.iconPath = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -340,6 +420,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Expression<int>? createdAt,
     Expression<int>? archivedAt,
     Expression<int>? scheduleMask,
+    Expression<String>? iconId,
+    Expression<String>? iconPath,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -349,6 +431,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       if (createdAt != null) 'created_at': createdAt,
       if (archivedAt != null) 'archived_at': archivedAt,
       if (scheduleMask != null) 'schedule_mask': scheduleMask,
+      if (iconId != null) 'icon_id': iconId,
+      if (iconPath != null) 'icon_path': iconPath,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -360,6 +444,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Value<int>? createdAt,
     Value<int?>? archivedAt,
     Value<int?>? scheduleMask,
+    Value<String>? iconId,
+    Value<String>? iconPath,
     Value<int>? rowid,
   }) {
     return HabitsCompanion(
@@ -369,6 +455,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       createdAt: createdAt ?? this.createdAt,
       archivedAt: archivedAt ?? this.archivedAt,
       scheduleMask: scheduleMask ?? this.scheduleMask,
+      iconId: iconId ?? this.iconId,
+      iconPath: iconPath ?? this.iconPath,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -394,6 +482,12 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     if (scheduleMask.present) {
       map['schedule_mask'] = Variable<int>(scheduleMask.value);
     }
+    if (iconId.present) {
+      map['icon_id'] = Variable<String>(iconId.value);
+    }
+    if (iconPath.present) {
+      map['icon_path'] = Variable<String>(iconPath.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -409,6 +503,8 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
           ..write('createdAt: $createdAt, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('scheduleMask: $scheduleMask, ')
+          ..write('iconId: $iconId, ')
+          ..write('iconPath: $iconPath, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -780,6 +876,79 @@ class $UserSettingsTable extends UserSettings
     requiredDuringInsert: false,
     defaultValue: const Constant('system'),
   );
+  static const VerificationMeta _soundCompleteIdMeta = const VerificationMeta(
+    'soundCompleteId',
+  );
+  @override
+  late final GeneratedColumn<String> soundCompleteId = GeneratedColumn<String>(
+    'sound_complete_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('complete'),
+  );
+  static const VerificationMeta _soundLevelUpIdMeta = const VerificationMeta(
+    'soundLevelUpId',
+  );
+  @override
+  late final GeneratedColumn<String> soundLevelUpId = GeneratedColumn<String>(
+    'sound_level_up_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('level_up'),
+  );
+  static const VerificationMeta _soundEquipIdMeta = const VerificationMeta(
+    'soundEquipId',
+  );
+  @override
+  late final GeneratedColumn<String> soundEquipId = GeneratedColumn<String>(
+    'sound_equip_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('equip'),
+  );
+  static const VerificationMeta _soundCompletePathMeta = const VerificationMeta(
+    'soundCompletePath',
+  );
+  @override
+  late final GeneratedColumn<String> soundCompletePath =
+      GeneratedColumn<String>(
+        'sound_complete_path',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(''),
+      );
+  static const VerificationMeta _soundLevelUpPathMeta = const VerificationMeta(
+    'soundLevelUpPath',
+  );
+  @override
+  late final GeneratedColumn<String> soundLevelUpPath = GeneratedColumn<String>(
+    'sound_level_up_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _soundEquipPathMeta = const VerificationMeta(
+    'soundEquipPath',
+  );
+  @override
+  late final GeneratedColumn<String> soundEquipPath = GeneratedColumn<String>(
+    'sound_equip_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _themeIdMeta = const VerificationMeta(
     'themeId',
   );
@@ -797,6 +966,12 @@ class $UserSettingsTable extends UserSettings
     id,
     soundEnabled,
     soundPackId,
+    soundCompleteId,
+    soundLevelUpId,
+    soundEquipId,
+    soundCompletePath,
+    soundLevelUpPath,
+    soundEquipPath,
     themeId,
   ];
   @override
@@ -832,6 +1007,60 @@ class $UserSettingsTable extends UserSettings
         ),
       );
     }
+    if (data.containsKey('sound_complete_id')) {
+      context.handle(
+        _soundCompleteIdMeta,
+        soundCompleteId.isAcceptableOrUnknown(
+          data['sound_complete_id']!,
+          _soundCompleteIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sound_level_up_id')) {
+      context.handle(
+        _soundLevelUpIdMeta,
+        soundLevelUpId.isAcceptableOrUnknown(
+          data['sound_level_up_id']!,
+          _soundLevelUpIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sound_equip_id')) {
+      context.handle(
+        _soundEquipIdMeta,
+        soundEquipId.isAcceptableOrUnknown(
+          data['sound_equip_id']!,
+          _soundEquipIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sound_complete_path')) {
+      context.handle(
+        _soundCompletePathMeta,
+        soundCompletePath.isAcceptableOrUnknown(
+          data['sound_complete_path']!,
+          _soundCompletePathMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sound_level_up_path')) {
+      context.handle(
+        _soundLevelUpPathMeta,
+        soundLevelUpPath.isAcceptableOrUnknown(
+          data['sound_level_up_path']!,
+          _soundLevelUpPathMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sound_equip_path')) {
+      context.handle(
+        _soundEquipPathMeta,
+        soundEquipPath.isAcceptableOrUnknown(
+          data['sound_equip_path']!,
+          _soundEquipPathMeta,
+        ),
+      );
+    }
     if (data.containsKey('theme_id')) {
       context.handle(
         _themeIdMeta,
@@ -859,6 +1088,30 @@ class $UserSettingsTable extends UserSettings
         DriftSqlType.string,
         data['${effectivePrefix}sound_pack_id'],
       )!,
+      soundCompleteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sound_complete_id'],
+      )!,
+      soundLevelUpId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sound_level_up_id'],
+      )!,
+      soundEquipId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sound_equip_id'],
+      )!,
+      soundCompletePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sound_complete_path'],
+      )!,
+      soundLevelUpPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sound_level_up_path'],
+      )!,
+      soundEquipPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sound_equip_path'],
+      )!,
       themeId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}theme_id'],
@@ -876,11 +1129,23 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
   final int id;
   final bool soundEnabled;
   final String soundPackId;
+  final String soundCompleteId;
+  final String soundLevelUpId;
+  final String soundEquipId;
+  final String soundCompletePath;
+  final String soundLevelUpPath;
+  final String soundEquipPath;
   final String themeId;
   const UserSetting({
     required this.id,
     required this.soundEnabled,
     required this.soundPackId,
+    required this.soundCompleteId,
+    required this.soundLevelUpId,
+    required this.soundEquipId,
+    required this.soundCompletePath,
+    required this.soundLevelUpPath,
+    required this.soundEquipPath,
     required this.themeId,
   });
   @override
@@ -889,6 +1154,12 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     map['id'] = Variable<int>(id);
     map['sound_enabled'] = Variable<bool>(soundEnabled);
     map['sound_pack_id'] = Variable<String>(soundPackId);
+    map['sound_complete_id'] = Variable<String>(soundCompleteId);
+    map['sound_level_up_id'] = Variable<String>(soundLevelUpId);
+    map['sound_equip_id'] = Variable<String>(soundEquipId);
+    map['sound_complete_path'] = Variable<String>(soundCompletePath);
+    map['sound_level_up_path'] = Variable<String>(soundLevelUpPath);
+    map['sound_equip_path'] = Variable<String>(soundEquipPath);
     map['theme_id'] = Variable<String>(themeId);
     return map;
   }
@@ -898,6 +1169,12 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       id: Value(id),
       soundEnabled: Value(soundEnabled),
       soundPackId: Value(soundPackId),
+      soundCompleteId: Value(soundCompleteId),
+      soundLevelUpId: Value(soundLevelUpId),
+      soundEquipId: Value(soundEquipId),
+      soundCompletePath: Value(soundCompletePath),
+      soundLevelUpPath: Value(soundLevelUpPath),
+      soundEquipPath: Value(soundEquipPath),
       themeId: Value(themeId),
     );
   }
@@ -911,6 +1188,12 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       id: serializer.fromJson<int>(json['id']),
       soundEnabled: serializer.fromJson<bool>(json['soundEnabled']),
       soundPackId: serializer.fromJson<String>(json['soundPackId']),
+      soundCompleteId: serializer.fromJson<String>(json['soundCompleteId']),
+      soundLevelUpId: serializer.fromJson<String>(json['soundLevelUpId']),
+      soundEquipId: serializer.fromJson<String>(json['soundEquipId']),
+      soundCompletePath: serializer.fromJson<String>(json['soundCompletePath']),
+      soundLevelUpPath: serializer.fromJson<String>(json['soundLevelUpPath']),
+      soundEquipPath: serializer.fromJson<String>(json['soundEquipPath']),
       themeId: serializer.fromJson<String>(json['themeId']),
     );
   }
@@ -921,6 +1204,12 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       'id': serializer.toJson<int>(id),
       'soundEnabled': serializer.toJson<bool>(soundEnabled),
       'soundPackId': serializer.toJson<String>(soundPackId),
+      'soundCompleteId': serializer.toJson<String>(soundCompleteId),
+      'soundLevelUpId': serializer.toJson<String>(soundLevelUpId),
+      'soundEquipId': serializer.toJson<String>(soundEquipId),
+      'soundCompletePath': serializer.toJson<String>(soundCompletePath),
+      'soundLevelUpPath': serializer.toJson<String>(soundLevelUpPath),
+      'soundEquipPath': serializer.toJson<String>(soundEquipPath),
       'themeId': serializer.toJson<String>(themeId),
     };
   }
@@ -929,11 +1218,23 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     int? id,
     bool? soundEnabled,
     String? soundPackId,
+    String? soundCompleteId,
+    String? soundLevelUpId,
+    String? soundEquipId,
+    String? soundCompletePath,
+    String? soundLevelUpPath,
+    String? soundEquipPath,
     String? themeId,
   }) => UserSetting(
     id: id ?? this.id,
     soundEnabled: soundEnabled ?? this.soundEnabled,
     soundPackId: soundPackId ?? this.soundPackId,
+    soundCompleteId: soundCompleteId ?? this.soundCompleteId,
+    soundLevelUpId: soundLevelUpId ?? this.soundLevelUpId,
+    soundEquipId: soundEquipId ?? this.soundEquipId,
+    soundCompletePath: soundCompletePath ?? this.soundCompletePath,
+    soundLevelUpPath: soundLevelUpPath ?? this.soundLevelUpPath,
+    soundEquipPath: soundEquipPath ?? this.soundEquipPath,
     themeId: themeId ?? this.themeId,
   );
   UserSetting copyWithCompanion(UserSettingsCompanion data) {
@@ -945,6 +1246,24 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       soundPackId: data.soundPackId.present
           ? data.soundPackId.value
           : this.soundPackId,
+      soundCompleteId: data.soundCompleteId.present
+          ? data.soundCompleteId.value
+          : this.soundCompleteId,
+      soundLevelUpId: data.soundLevelUpId.present
+          ? data.soundLevelUpId.value
+          : this.soundLevelUpId,
+      soundEquipId: data.soundEquipId.present
+          ? data.soundEquipId.value
+          : this.soundEquipId,
+      soundCompletePath: data.soundCompletePath.present
+          ? data.soundCompletePath.value
+          : this.soundCompletePath,
+      soundLevelUpPath: data.soundLevelUpPath.present
+          ? data.soundLevelUpPath.value
+          : this.soundLevelUpPath,
+      soundEquipPath: data.soundEquipPath.present
+          ? data.soundEquipPath.value
+          : this.soundEquipPath,
       themeId: data.themeId.present ? data.themeId.value : this.themeId,
     );
   }
@@ -955,13 +1274,30 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
           ..write('id: $id, ')
           ..write('soundEnabled: $soundEnabled, ')
           ..write('soundPackId: $soundPackId, ')
+          ..write('soundCompleteId: $soundCompleteId, ')
+          ..write('soundLevelUpId: $soundLevelUpId, ')
+          ..write('soundEquipId: $soundEquipId, ')
+          ..write('soundCompletePath: $soundCompletePath, ')
+          ..write('soundLevelUpPath: $soundLevelUpPath, ')
+          ..write('soundEquipPath: $soundEquipPath, ')
           ..write('themeId: $themeId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, soundEnabled, soundPackId, themeId);
+  int get hashCode => Object.hash(
+    id,
+    soundEnabled,
+    soundPackId,
+    soundCompleteId,
+    soundLevelUpId,
+    soundEquipId,
+    soundCompletePath,
+    soundLevelUpPath,
+    soundEquipPath,
+    themeId,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -969,6 +1305,12 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
           other.id == this.id &&
           other.soundEnabled == this.soundEnabled &&
           other.soundPackId == this.soundPackId &&
+          other.soundCompleteId == this.soundCompleteId &&
+          other.soundLevelUpId == this.soundLevelUpId &&
+          other.soundEquipId == this.soundEquipId &&
+          other.soundCompletePath == this.soundCompletePath &&
+          other.soundLevelUpPath == this.soundLevelUpPath &&
+          other.soundEquipPath == this.soundEquipPath &&
           other.themeId == this.themeId);
 }
 
@@ -976,29 +1318,59 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
   final Value<int> id;
   final Value<bool> soundEnabled;
   final Value<String> soundPackId;
+  final Value<String> soundCompleteId;
+  final Value<String> soundLevelUpId;
+  final Value<String> soundEquipId;
+  final Value<String> soundCompletePath;
+  final Value<String> soundLevelUpPath;
+  final Value<String> soundEquipPath;
   final Value<String> themeId;
   const UserSettingsCompanion({
     this.id = const Value.absent(),
     this.soundEnabled = const Value.absent(),
     this.soundPackId = const Value.absent(),
+    this.soundCompleteId = const Value.absent(),
+    this.soundLevelUpId = const Value.absent(),
+    this.soundEquipId = const Value.absent(),
+    this.soundCompletePath = const Value.absent(),
+    this.soundLevelUpPath = const Value.absent(),
+    this.soundEquipPath = const Value.absent(),
     this.themeId = const Value.absent(),
   });
   UserSettingsCompanion.insert({
     this.id = const Value.absent(),
     this.soundEnabled = const Value.absent(),
     this.soundPackId = const Value.absent(),
+    this.soundCompleteId = const Value.absent(),
+    this.soundLevelUpId = const Value.absent(),
+    this.soundEquipId = const Value.absent(),
+    this.soundCompletePath = const Value.absent(),
+    this.soundLevelUpPath = const Value.absent(),
+    this.soundEquipPath = const Value.absent(),
     this.themeId = const Value.absent(),
   });
   static Insertable<UserSetting> custom({
     Expression<int>? id,
     Expression<bool>? soundEnabled,
     Expression<String>? soundPackId,
+    Expression<String>? soundCompleteId,
+    Expression<String>? soundLevelUpId,
+    Expression<String>? soundEquipId,
+    Expression<String>? soundCompletePath,
+    Expression<String>? soundLevelUpPath,
+    Expression<String>? soundEquipPath,
     Expression<String>? themeId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (soundEnabled != null) 'sound_enabled': soundEnabled,
       if (soundPackId != null) 'sound_pack_id': soundPackId,
+      if (soundCompleteId != null) 'sound_complete_id': soundCompleteId,
+      if (soundLevelUpId != null) 'sound_level_up_id': soundLevelUpId,
+      if (soundEquipId != null) 'sound_equip_id': soundEquipId,
+      if (soundCompletePath != null) 'sound_complete_path': soundCompletePath,
+      if (soundLevelUpPath != null) 'sound_level_up_path': soundLevelUpPath,
+      if (soundEquipPath != null) 'sound_equip_path': soundEquipPath,
       if (themeId != null) 'theme_id': themeId,
     });
   }
@@ -1007,12 +1379,24 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     Value<int>? id,
     Value<bool>? soundEnabled,
     Value<String>? soundPackId,
+    Value<String>? soundCompleteId,
+    Value<String>? soundLevelUpId,
+    Value<String>? soundEquipId,
+    Value<String>? soundCompletePath,
+    Value<String>? soundLevelUpPath,
+    Value<String>? soundEquipPath,
     Value<String>? themeId,
   }) {
     return UserSettingsCompanion(
       id: id ?? this.id,
       soundEnabled: soundEnabled ?? this.soundEnabled,
       soundPackId: soundPackId ?? this.soundPackId,
+      soundCompleteId: soundCompleteId ?? this.soundCompleteId,
+      soundLevelUpId: soundLevelUpId ?? this.soundLevelUpId,
+      soundEquipId: soundEquipId ?? this.soundEquipId,
+      soundCompletePath: soundCompletePath ?? this.soundCompletePath,
+      soundLevelUpPath: soundLevelUpPath ?? this.soundLevelUpPath,
+      soundEquipPath: soundEquipPath ?? this.soundEquipPath,
       themeId: themeId ?? this.themeId,
     );
   }
@@ -1029,6 +1413,24 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     if (soundPackId.present) {
       map['sound_pack_id'] = Variable<String>(soundPackId.value);
     }
+    if (soundCompleteId.present) {
+      map['sound_complete_id'] = Variable<String>(soundCompleteId.value);
+    }
+    if (soundLevelUpId.present) {
+      map['sound_level_up_id'] = Variable<String>(soundLevelUpId.value);
+    }
+    if (soundEquipId.present) {
+      map['sound_equip_id'] = Variable<String>(soundEquipId.value);
+    }
+    if (soundCompletePath.present) {
+      map['sound_complete_path'] = Variable<String>(soundCompletePath.value);
+    }
+    if (soundLevelUpPath.present) {
+      map['sound_level_up_path'] = Variable<String>(soundLevelUpPath.value);
+    }
+    if (soundEquipPath.present) {
+      map['sound_equip_path'] = Variable<String>(soundEquipPath.value);
+    }
     if (themeId.present) {
       map['theme_id'] = Variable<String>(themeId.value);
     }
@@ -1041,6 +1443,12 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
           ..write('id: $id, ')
           ..write('soundEnabled: $soundEnabled, ')
           ..write('soundPackId: $soundPackId, ')
+          ..write('soundCompleteId: $soundCompleteId, ')
+          ..write('soundLevelUpId: $soundLevelUpId, ')
+          ..write('soundEquipId: $soundEquipId, ')
+          ..write('soundCompletePath: $soundCompletePath, ')
+          ..write('soundLevelUpPath: $soundLevelUpPath, ')
+          ..write('soundEquipPath: $soundEquipPath, ')
           ..write('themeId: $themeId')
           ..write(')'))
         .toString();
@@ -1939,6 +2347,8 @@ typedef $$HabitsTableCreateCompanionBuilder =
       required int createdAt,
       Value<int?> archivedAt,
       Value<int?> scheduleMask,
+      Value<String> iconId,
+      Value<String> iconPath,
       Value<int> rowid,
     });
 typedef $$HabitsTableUpdateCompanionBuilder =
@@ -1949,6 +2359,8 @@ typedef $$HabitsTableUpdateCompanionBuilder =
       Value<int> createdAt,
       Value<int?> archivedAt,
       Value<int?> scheduleMask,
+      Value<String> iconId,
+      Value<String> iconPath,
       Value<int> rowid,
     });
 
@@ -2015,6 +2427,16 @@ class $$HabitsTableFilterComposer extends Composer<_$AppDb, $HabitsTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get iconId => $composableBuilder(
+    column: $table.iconId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get iconPath => $composableBuilder(
+    column: $table.iconPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> habitCompletionsRefs(
     Expression<bool> Function($$HabitCompletionsTableFilterComposer f) f,
   ) {
@@ -2078,6 +2500,16 @@ class $$HabitsTableOrderingComposer extends Composer<_$AppDb, $HabitsTable> {
     column: $table.scheduleMask,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get iconId => $composableBuilder(
+    column: $table.iconId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get iconPath => $composableBuilder(
+    column: $table.iconPath,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$HabitsTableAnnotationComposer extends Composer<_$AppDb, $HabitsTable> {
@@ -2109,6 +2541,12 @@ class $$HabitsTableAnnotationComposer extends Composer<_$AppDb, $HabitsTable> {
     column: $table.scheduleMask,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get iconId =>
+      $composableBuilder(column: $table.iconId, builder: (column) => column);
+
+  GeneratedColumn<String> get iconPath =>
+      $composableBuilder(column: $table.iconPath, builder: (column) => column);
 
   Expression<T> habitCompletionsRefs<T extends Object>(
     Expression<T> Function($$HabitCompletionsTableAnnotationComposer a) f,
@@ -2170,6 +2608,8 @@ class $$HabitsTableTableManager
                 Value<int> createdAt = const Value.absent(),
                 Value<int?> archivedAt = const Value.absent(),
                 Value<int?> scheduleMask = const Value.absent(),
+                Value<String> iconId = const Value.absent(),
+                Value<String> iconPath = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HabitsCompanion(
                 id: id,
@@ -2178,6 +2618,8 @@ class $$HabitsTableTableManager
                 createdAt: createdAt,
                 archivedAt: archivedAt,
                 scheduleMask: scheduleMask,
+                iconId: iconId,
+                iconPath: iconPath,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2188,6 +2630,8 @@ class $$HabitsTableTableManager
                 required int createdAt,
                 Value<int?> archivedAt = const Value.absent(),
                 Value<int?> scheduleMask = const Value.absent(),
+                Value<String> iconId = const Value.absent(),
+                Value<String> iconPath = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HabitsCompanion.insert(
                 id: id,
@@ -2196,6 +2640,8 @@ class $$HabitsTableTableManager
                 createdAt: createdAt,
                 archivedAt: archivedAt,
                 scheduleMask: scheduleMask,
+                iconId: iconId,
+                iconPath: iconPath,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -2565,6 +3011,12 @@ typedef $$UserSettingsTableCreateCompanionBuilder =
       Value<int> id,
       Value<bool> soundEnabled,
       Value<String> soundPackId,
+      Value<String> soundCompleteId,
+      Value<String> soundLevelUpId,
+      Value<String> soundEquipId,
+      Value<String> soundCompletePath,
+      Value<String> soundLevelUpPath,
+      Value<String> soundEquipPath,
       Value<String> themeId,
     });
 typedef $$UserSettingsTableUpdateCompanionBuilder =
@@ -2572,6 +3024,12 @@ typedef $$UserSettingsTableUpdateCompanionBuilder =
       Value<int> id,
       Value<bool> soundEnabled,
       Value<String> soundPackId,
+      Value<String> soundCompleteId,
+      Value<String> soundLevelUpId,
+      Value<String> soundEquipId,
+      Value<String> soundCompletePath,
+      Value<String> soundLevelUpPath,
+      Value<String> soundEquipPath,
       Value<String> themeId,
     });
 
@@ -2596,6 +3054,36 @@ class $$UserSettingsTableFilterComposer
 
   ColumnFilters<String> get soundPackId => $composableBuilder(
     column: $table.soundPackId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get soundCompleteId => $composableBuilder(
+    column: $table.soundCompleteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get soundLevelUpId => $composableBuilder(
+    column: $table.soundLevelUpId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get soundEquipId => $composableBuilder(
+    column: $table.soundEquipId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get soundCompletePath => $composableBuilder(
+    column: $table.soundCompletePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get soundLevelUpPath => $composableBuilder(
+    column: $table.soundLevelUpPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get soundEquipPath => $composableBuilder(
+    column: $table.soundEquipPath,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2629,6 +3117,36 @@ class $$UserSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get soundCompleteId => $composableBuilder(
+    column: $table.soundCompleteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get soundLevelUpId => $composableBuilder(
+    column: $table.soundLevelUpId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get soundEquipId => $composableBuilder(
+    column: $table.soundEquipId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get soundCompletePath => $composableBuilder(
+    column: $table.soundCompletePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get soundLevelUpPath => $composableBuilder(
+    column: $table.soundLevelUpPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get soundEquipPath => $composableBuilder(
+    column: $table.soundEquipPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get themeId => $composableBuilder(
     column: $table.themeId,
     builder: (column) => ColumnOrderings(column),
@@ -2654,6 +3172,36 @@ class $$UserSettingsTableAnnotationComposer
 
   GeneratedColumn<String> get soundPackId => $composableBuilder(
     column: $table.soundPackId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get soundCompleteId => $composableBuilder(
+    column: $table.soundCompleteId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get soundLevelUpId => $composableBuilder(
+    column: $table.soundLevelUpId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get soundEquipId => $composableBuilder(
+    column: $table.soundEquipId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get soundCompletePath => $composableBuilder(
+    column: $table.soundCompletePath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get soundLevelUpPath => $composableBuilder(
+    column: $table.soundLevelUpPath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get soundEquipPath => $composableBuilder(
+    column: $table.soundEquipPath,
     builder: (column) => column,
   );
 
@@ -2695,11 +3243,23 @@ class $$UserSettingsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<bool> soundEnabled = const Value.absent(),
                 Value<String> soundPackId = const Value.absent(),
+                Value<String> soundCompleteId = const Value.absent(),
+                Value<String> soundLevelUpId = const Value.absent(),
+                Value<String> soundEquipId = const Value.absent(),
+                Value<String> soundCompletePath = const Value.absent(),
+                Value<String> soundLevelUpPath = const Value.absent(),
+                Value<String> soundEquipPath = const Value.absent(),
                 Value<String> themeId = const Value.absent(),
               }) => UserSettingsCompanion(
                 id: id,
                 soundEnabled: soundEnabled,
                 soundPackId: soundPackId,
+                soundCompleteId: soundCompleteId,
+                soundLevelUpId: soundLevelUpId,
+                soundEquipId: soundEquipId,
+                soundCompletePath: soundCompletePath,
+                soundLevelUpPath: soundLevelUpPath,
+                soundEquipPath: soundEquipPath,
                 themeId: themeId,
               ),
           createCompanionCallback:
@@ -2707,11 +3267,23 @@ class $$UserSettingsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<bool> soundEnabled = const Value.absent(),
                 Value<String> soundPackId = const Value.absent(),
+                Value<String> soundCompleteId = const Value.absent(),
+                Value<String> soundLevelUpId = const Value.absent(),
+                Value<String> soundEquipId = const Value.absent(),
+                Value<String> soundCompletePath = const Value.absent(),
+                Value<String> soundLevelUpPath = const Value.absent(),
+                Value<String> soundEquipPath = const Value.absent(),
                 Value<String> themeId = const Value.absent(),
               }) => UserSettingsCompanion.insert(
                 id: id,
                 soundEnabled: soundEnabled,
                 soundPackId: soundPackId,
+                soundCompleteId: soundCompleteId,
+                soundLevelUpId: soundLevelUpId,
+                soundEquipId: soundEquipId,
+                soundCompletePath: soundCompletePath,
+                soundLevelUpPath: soundLevelUpPath,
+                soundEquipPath: soundEquipPath,
                 themeId: themeId,
               ),
           withReferenceMapper: (p0) => p0

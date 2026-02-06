@@ -226,6 +226,17 @@ class AppTheme {
         menuStyle: MenuStyle(
           backgroundColor: WidgetStatePropertyAll(scheme.surface),
           surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: scheme.outline),
+            ),
+          ),
+          elevation: const WidgetStatePropertyAll(8),
+          shadowColor: WidgetStatePropertyAll(scheme.shadow),
+          padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(vertical: 6),
+          ),
         ),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
