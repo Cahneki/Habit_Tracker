@@ -137,7 +137,7 @@ class AppTheme {
         hintStyle: textTheme.bodyMedium?.copyWith(color: midnightMuted),
       ),
       dividerTheme: const DividerThemeData(color: Color(0x332A3238)),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: midnightSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
