@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../db/app_db.dart';
 import '../../shared/local_day.dart';
-import '../../theme/app_theme.dart';
 import 'habit_repository.dart';
 import 'schedule_picker.dart';
 
@@ -64,8 +63,9 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: Text(widget.habit.name)),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -82,100 +82,89 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
               }
               final days = ScheduleMask.daysFromMask(scheduleMask);
 
-              return Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: AppTheme.cardBorder),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x14000000),
-                      blurRadius: 10,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        _MiniStat(label: 'Current', value: '${s.current}'),
-                        const SizedBox(width: 12),
-                        _MiniStat(label: 'Best', value: '${s.longest}'),
-                        const SizedBox(width: 12),
-                        _MiniStat(label: 'Total', value: '${s.totalCompletions}'),
+              return Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          _MiniStat(label: 'Current', value: '${s.current}'),
+                          const SizedBox(width: 12),
+                          _MiniStat(label: 'Best', value: '${s.longest}'),
+                          const SizedBox(width: 12),
+                          _MiniStat(label: 'Total', value: '${s.totalCompletions}'),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Schedule',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 8),
+                      SchedulePicker(activeDays: days, onChanged: _updateSchedule),
+                      if (days.isEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Pick at least one day',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ],
-                    ),
-                    const SizedBox(height: 14),
-                    const Text(
-                      'Schedule',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 8),
-                    SchedulePicker(activeDays: days, onChanged: _updateSchedule),
-                    if (days.isEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        'Pick at least one day',
-                        style: Theme.of(context).textTheme.bodySmall,
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        height: 44,
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed:
+                              s.completedToday || !_isScheduled(DateTime.now())
+                                  ? null
+                                  : _complete,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: scheme.primary,
+                            foregroundColor: scheme.onPrimary,
+                            disabledBackgroundColor:
+                                scheme.primary.withValues(alpha: 0.35),
+                            disabledForegroundColor:
+                                scheme.onPrimary.withValues(alpha: 0.7),
+                            shape: const StadiumBorder(),
+                            textStyle:
+                                const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          child: Text(
+                            s.completedToday
+                                ? 'Completed today'
+                                : 'Complete today',
+                          ),
+                        ),
                       ),
                     ],
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      height: 44,
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed:
-                            s.completedToday || !_isScheduled(DateTime.now())
-                                ? null
-                                : _complete,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.wood,
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor:
-                              AppTheme.wood.withValues(alpha: 0.35),
-                          shape: const StadiumBorder(),
-                          textStyle: const TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        child: Text(
-                          s.completedToday ? 'Completed today' : 'Complete today',
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               );
             },
           ),
           const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: AppTheme.cardBorder),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x14000000),
-                  blurRadius: 10,
-                  offset: Offset(0, 6),
-                ),
-              ],
-            ),
-            child: _CalendarHistory(
-              repo: widget.repo,
-              habitId: widget.habit.id,
-              month: visibleMonth,
-              scheduleMask: scheduleMask,
-              onToggleDay: _toggleCompletionForDay,
-              onPrev: () => setState(() {
-                visibleMonth = DateTime(visibleMonth.year, visibleMonth.month - 1, 1);
-              }),
-              onNext: () => setState(() {
-                visibleMonth = DateTime(visibleMonth.year, visibleMonth.month + 1, 1);
-              }),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: _CalendarHistory(
+                repo: widget.repo,
+                habitId: widget.habit.id,
+                month: visibleMonth,
+                scheduleMask: scheduleMask,
+                onToggleDay: _toggleCompletionForDay,
+                onPrev: () => setState(() {
+                  visibleMonth =
+                      DateTime(visibleMonth.year, visibleMonth.month - 1, 1);
+                }),
+                onNext: () => setState(() {
+                  visibleMonth =
+                      DateTime(visibleMonth.year, visibleMonth.month + 1, 1);
+                }),
+              ),
             ),
           ),
         ],
@@ -192,24 +181,25 @@ class _MiniStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: AppTheme.parchment,
+          color: scheme.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppTheme.cardBorder),
+          border: Border.all(color: scheme.outline),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               label.toUpperCase(),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1,
-                color: AppTheme.muted,
+                color: scheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 6),
@@ -218,7 +208,6 @@ class _MiniStat extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
-                color: AppTheme.ink,
               ),
             ),
           ],
@@ -249,6 +238,7 @@ class _CalendarHistory extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final title = '${_monthName(month.month)} ${month.year}';
 
     return FutureBuilder<Set<String>>(
@@ -295,8 +285,8 @@ class _CalendarHistory extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: density,
                 minHeight: 8,
-                backgroundColor: AppTheme.parchment,
-                color: AppTheme.primary,
+                backgroundColor: scheme.surface,
+                color: scheme.primary,
               ),
             ),
             if (scheduledDays == 0) ...[
@@ -337,7 +327,7 @@ class _CalendarHistory extends StatelessWidget {
                   width: 10,
                   height: 10,
                   decoration: BoxDecoration(
-                    color: AppTheme.cardBorder.withValues(alpha: 0.5),
+                    color: scheme.outline.withValues(alpha: 0.5),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -370,6 +360,7 @@ class _MonthGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final first = DateTime(month.year, month.month, 1);
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
 
@@ -422,15 +413,16 @@ class _MonthGrid extends StatelessWidget {
               final done = completedLocalDays.contains(key);
               final scheduled = isScheduled(date);
               final labelColor = scheduled
-                  ? AppTheme.ink
-                  : AppTheme.muted.withValues(alpha: 0.55);
+                  ? scheme.onSurface
+                  : scheme.onSurfaceVariant.withValues(alpha: 0.6);
               final borderColor = scheduled
-                  ? AppTheme.cardBorder
-                  : AppTheme.cardBorder.withValues(alpha: 0.45);
+                  ? scheme.outline
+                  : scheme.outline.withValues(alpha: 0.45);
 
               return Material(
-                color:
-                    done ? AppTheme.primary.withValues(alpha: 0.2) : Colors.transparent,
+                color: done
+                    ? scheme.primary.withValues(alpha: 0.2)
+                    : scheme.surface.withValues(alpha: 0),
                 borderRadius: BorderRadius.circular(10),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(10),

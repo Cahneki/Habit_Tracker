@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../db/app_db.dart';
 import '../../shared/local_day.dart';
 import '../../shared/xp_utils.dart';
-import '../../theme/app_theme.dart';
 import '../habits/habit_repository.dart';
 
 class StatsPage extends StatefulWidget {
@@ -153,68 +152,66 @@ class _StatsPageState extends State<StatsPage> {
     );
   }
 
-  Widget _statCard(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.1,
-              color: AppTheme.muted,
+  Widget _statCard(BuildContext context, String label, String value) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.1,
+                color: scheme.onSurfaceVariant,
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-          ),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _rateCard(String label, _CompletionRate rate) {
+  Widget _rateCard(BuildContext context, String label, _CompletionRate rate) {
+    final scheme = Theme.of(context).colorScheme;
     final pct =
         rate.scheduled == 0 ? 0 : ((rate.completed / rate.scheduled) * 100).round();
     final density = rate.scheduled == 0 ? 0.0 : rate.completed / rate.scheduled;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 6),
-          Text('${rate.completed}/${rate.scheduled} ($pct%)'),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: density,
-              minHeight: 8,
-              backgroundColor: AppTheme.parchment,
-              color: AppTheme.primary,
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
             ),
-          ),
-        ],
+            const SizedBox(height: 6),
+            Text('${rate.completed}/${rate.scheduled} ($pct%)'),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: density,
+                minHeight: 8,
+                backgroundColor: scheme.surface,
+                color: scheme.primary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -222,7 +219,7 @@ class _StatsPageState extends State<StatsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('Stats')),
       body: FutureBuilder<_StatsVm>(
         future: _future,
@@ -238,25 +235,37 @@ class _StatsPageState extends State<StatsPage> {
             children: [
               Row(
                 children: [
-                  Expanded(child: _statCard('Level', '${vm.level}')),
+                  Expanded(child: _statCard(context, 'Level', '${vm.level}')),
                   const SizedBox(width: 12),
-                  Expanded(child: _statCard('XP', '${vm.xp}')),
+                  Expanded(child: _statCard(context, 'XP', '${vm.xp}')),
                 ],
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: _statCard('Current Streak', '${vm.currentStreak}d')),
+                  Expanded(
+                    child: _statCard(
+                      context,
+                      'Current Streak',
+                      '${vm.currentStreak}d',
+                    ),
+                  ),
                   const SizedBox(width: 12),
-                  Expanded(child: _statCard('Best Streak', '${vm.bestStreak}d')),
+                  Expanded(
+                    child: _statCard(
+                      context,
+                      'Best Streak',
+                      '${vm.bestStreak}d',
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
-              _statCard('Total Completions', '${vm.totalCompletions}'),
+              _statCard(context, 'Total Completions', '${vm.totalCompletions}'),
               const SizedBox(height: 12),
-              _rateCard('Completion Rate (This Week)', vm.week),
+              _rateCard(context, 'Completion Rate (This Week)', vm.week),
               const SizedBox(height: 12),
-              _rateCard('Completion Rate (This Month)', vm.month),
+              _rateCard(context, 'Completion Rate (This Month)', vm.month),
             ],
           );
         },

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../db/app_db.dart';
 import '../../shared/habit_utils.dart';
-import '../../theme/app_theme.dart';
 import 'habit_repository.dart';
 import 'schedule_picker.dart';
 
@@ -207,13 +206,15 @@ class _HabitsManagePageState extends State<HabitsManagePage> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('Habits')),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab-habits',
         onPressed: _createHabit,
-        backgroundColor: AppTheme.primary,
-        foregroundColor: AppTheme.ink,
+        backgroundColor: scheme.primary,
+        foregroundColor: scheme.onPrimary,
         child: const Icon(Icons.add),
       ),
       body: FutureBuilder<_HabitsManageVm>(

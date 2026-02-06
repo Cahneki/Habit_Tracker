@@ -9,7 +9,7 @@ class CosmeticItem {
     required this.slot,
     required this.unlockLevel,
     required this.icon,
-    required this.color,
+    required this.tone,
     required this.damageBonusPct,
     required this.damageEligible,
   });
@@ -19,9 +19,18 @@ class CosmeticItem {
   final String slot; // head, body, accessory
   final int unlockLevel;
   final IconData icon;
-  final Color color;
+  final CosmeticTone tone;
   final double damageBonusPct;
   final bool damageEligible;
+}
+
+enum CosmeticTone {
+  primary,
+  secondary,
+  tertiary,
+  primaryContainer,
+  secondaryContainer,
+  tertiaryContainer,
 }
 
 class AvatarRepository {
@@ -39,7 +48,7 @@ class AvatarRepository {
       slot: slotHead,
       unlockLevel: 1,
       icon: Icons.hiking_rounded,
-      color: Color(0xFF8B5E34),
+      tone: CosmeticTone.secondary,
       damageBonusPct: 0.02,
       damageEligible: false,
     ),
@@ -49,7 +58,7 @@ class AvatarRepository {
       slot: slotHead,
       unlockLevel: 4,
       icon: Icons.emoji_nature_rounded,
-      color: Color(0xFF2B8C4A),
+      tone: CosmeticTone.primary,
       damageBonusPct: 0.03,
       damageEligible: false,
     ),
@@ -59,7 +68,7 @@ class AvatarRepository {
       slot: slotBody,
       unlockLevel: 1,
       icon: Icons.checkroom_rounded,
-      color: Color(0xFF4A2C2A),
+      tone: CosmeticTone.secondaryContainer,
       damageBonusPct: 0.02,
       damageEligible: false,
     ),
@@ -69,7 +78,7 @@ class AvatarRepository {
       slot: slotBody,
       unlockLevel: 6,
       icon: Icons.shield_rounded,
-      color: Color(0xFFB0793D),
+      tone: CosmeticTone.tertiary,
       damageBonusPct: 0.04,
       damageEligible: false,
     ),
@@ -79,7 +88,7 @@ class AvatarRepository {
       slot: slotAccessory,
       unlockLevel: 2,
       icon: Icons.backpack_rounded,
-      color: Color(0xFF8B5E34),
+      tone: CosmeticTone.secondary,
       damageBonusPct: 0.02,
       damageEligible: true,
     ),
@@ -89,7 +98,7 @@ class AvatarRepository {
       slot: slotAccessory,
       unlockLevel: 8,
       icon: Icons.explore_rounded,
-      color: Color(0xFF3E5C76),
+      tone: CosmeticTone.tertiaryContainer,
       damageBonusPct: 0.04,
       damageEligible: true,
     ),

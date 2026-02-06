@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/audio_service.dart';
 import '../../shared/xp_utils.dart';
-import '../../theme/app_theme.dart';
 import 'avatar_repository.dart';
 import '../habits/habit_repository.dart';
 
@@ -120,8 +119,9 @@ class _AvatarPageState extends State<AvatarPage> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('Avatar')),
       body: FutureBuilder<_AvatarVm>(
         future: _future,
@@ -145,97 +145,97 @@ class _AvatarPageState extends State<AvatarPage> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppTheme.cardBorder),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 38,
-                          backgroundColor: AppTheme.parchment,
-                          child: const Icon(Icons.person_rounded, size: 46),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Level ${vm.level}',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Head: ${namesById[equipped[AvatarRepository.slotHead]] ?? 'None'}',
-                              ),
-                              Text(
-                                'Body: ${namesById[equipped[AvatarRepository.slotBody]] ?? 'None'}',
-                              ),
-                              Text(
-                                'Accessory: ${namesById[equipped[AvatarRepository.slotAccessory]] ?? 'None'}',
-                              ),
-                            ],
+              Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 38,
+                            backgroundColor: scheme.surface,
+                            child: Icon(
+                              Icons.person_rounded,
+                              size: 46,
+                              color: scheme.onSurface,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Text('XP ${vm.xp} / ${vm.xpGoal}'),
-                        const Spacer(),
-                        Text('+${vm.xpToNext} to next'),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 8,
-                        backgroundColor: AppTheme.parchment,
-                        color: AppTheme.primary,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Level ${vm.level}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Head: ${namesById[equipped[AvatarRepository.slotHead]] ?? 'None'}',
+                                ),
+                                Text(
+                                  'Body: ${namesById[equipped[AvatarRepository.slotBody]] ?? 'None'}',
+                                ),
+                                Text(
+                                  'Accessory: ${namesById[equipped[AvatarRepository.slotAccessory]] ?? 'None'}',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Equipment bonus: +${(vm.equipPctCapped * 100).round()}% (cap 15%)',
-                      style: const TextStyle(color: AppTheme.muted),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Text('XP ${vm.xp} / ${vm.xpGoal}'),
+                          const Spacer(),
+                          Text('+${vm.xpToNext} to next'),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 8,
+                          backgroundColor: scheme.surface,
+                          color: scheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Equipment bonus: +${(vm.equipPctCapped * 100).round()}% (cap 15%)',
+                        style: TextStyle(color: scheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppTheme.cardBorder),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Lifetime Stats',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 8),
-                    Text('Total completions: ${vm.totalCompletions}'),
-                    Text('Total XP earned: ${vm.xp}'),
-                    Text('Best streak: ${vm.bestStreak} days'),
-                  ],
+              Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Lifetime Stats',
+                        style:
+                            TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 8),
+                      Text('Total completions: ${vm.totalCompletions}'),
+                      Text('Total XP earned: ${vm.xp}'),
+                      Text('Best streak: ${vm.bestStreak} days'),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -257,10 +257,11 @@ class _AvatarPageState extends State<AvatarPage> {
                     ...items.map((item) {
                       final unlocked = vm.level >= item.unlockLevel;
                       final isEquipped = equipped[slot] == item.id;
+                      final iconColor = _toneColor(scheme, item.tone);
                       return Card(
                         margin: const EdgeInsets.only(bottom: 10),
                         child: ListTile(
-                          leading: Icon(item.icon, color: item.color),
+                          leading: Icon(item.icon, color: iconColor),
                           title: Text(item.name),
                           subtitle: Text('Unlocks at level ${item.unlockLevel}'),
                           trailing: unlocked
@@ -281,5 +282,22 @@ class _AvatarPageState extends State<AvatarPage> {
         },
       ),
     );
+  }
+}
+
+Color _toneColor(ColorScheme scheme, CosmeticTone tone) {
+  switch (tone) {
+    case CosmeticTone.primary:
+      return scheme.primary;
+    case CosmeticTone.secondary:
+      return scheme.secondary;
+    case CosmeticTone.tertiary:
+      return scheme.tertiary;
+    case CosmeticTone.primaryContainer:
+      return scheme.primaryContainer;
+    case CosmeticTone.secondaryContainer:
+      return scheme.secondaryContainer;
+    case CosmeticTone.tertiaryContainer:
+      return scheme.tertiaryContainer;
   }
 }

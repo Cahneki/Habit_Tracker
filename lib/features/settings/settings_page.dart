@@ -66,8 +66,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('Settings')),
       body: FutureBuilder<UserSetting>(
         future: _future,
@@ -90,10 +91,11 @@ class _SettingsPageState extends State<SettingsPage> {
               InputDecorator(
                 decoration: const InputDecoration(labelText: 'Sound pack'),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: settings.soundPackId,
-                    isExpanded: true,
-                    items: AudioService.packs
+                child: DropdownButton<String>(
+                  value: settings.soundPackId,
+                  isExpanded: true,
+                  dropdownColor: scheme.surface,
+                  items: AudioService.packs
                         .map(
                           (p) => DropdownMenuItem(
                             value: p.id,
@@ -112,10 +114,11 @@ class _SettingsPageState extends State<SettingsPage> {
               InputDecorator(
                 decoration: const InputDecoration(labelText: 'Theme'),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: settings.themeId,
-                    isExpanded: true,
-                    items: AppTheme.options
+                child: DropdownButton<String>(
+                  value: settings.themeId,
+                  isExpanded: true,
+                  dropdownColor: scheme.surface,
+                  items: AppTheme.options
                         .map(
                           (t) => DropdownMenuItem(
                             value: t.id,

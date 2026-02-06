@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
 import '../avatar/avatar_repository.dart';
 import '../habits/habit_repository.dart';
 import 'battle_rewards_repository.dart';
@@ -93,85 +92,81 @@ class _BattlesPageState extends State<BattlesPage> {
     required Set<int> claimed,
     required double bonusPct,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     final percent = (stats.progressPct * 100).round();
     final densityPct = (stats.density * 100).round();
     final xpBonus = (stats.earnedXpWindow * bonusPct).round();
     const epsilon = 1e-9;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.cardBorder),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 10,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-              const Spacer(),
-              Text('${stats.daysLeft}d left',
-                  style: const TextStyle(color: AppTheme.muted)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Damage ${stats.damage} / ${stats.hp}',
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: stats.progressPct,
-              minHeight: 10,
-              backgroundColor: AppTheme.parchment,
-              color: AppTheme.primary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Text('$percent% complete'),
-              const Spacer(),
-              Text('Density: $densityPct% (${stats.completedTotal}/${stats.scheduledTotal})'),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'XP bonus: +$xpBonus total (claimable)',
-            style: const TextStyle(color: AppTheme.muted),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [50, 75, 100].map((m) {
-              final eligible =
-                  stats.progressPct + epsilon >= (m / 100.0);
-              final isClaimed = claimed.contains(m);
-              final label = isClaimed ? 'Claimed' : (eligible ? 'Claim' : 'Locked');
-              return SizedBox(
-                height: 34,
-                child: OutlinedButton(
-                  onPressed: eligible && !isClaimed
-                      ? () => _claim(stats, m, bonusPct)
-                      : null,
-                  child: Text('$m% $label'),
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                const Spacer(),
+                Text(
+                  '${stats.daysLeft}d left',
+                  style: TextStyle(color: scheme.onSurfaceVariant),
                 ),
-              );
-            }).toList(),
-          ),
-        ],
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Damage ${stats.damage} / ${stats.hp}',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: stats.progressPct,
+                minHeight: 10,
+                backgroundColor: scheme.surface,
+                color: scheme.primary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text('$percent% complete'),
+                const Spacer(),
+                Text(
+                  'Density: $densityPct% (${stats.completedTotal}/${stats.scheduledTotal})',
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'XP bonus: +$xpBonus total (claimable)',
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [50, 75, 100].map((m) {
+                final eligible = stats.progressPct + epsilon >= (m / 100.0);
+                final isClaimed = claimed.contains(m);
+                final label =
+                    isClaimed ? 'Claimed' : (eligible ? 'Claim' : 'Locked');
+                return SizedBox(
+                  height: 34,
+                  child: OutlinedButton(
+                    onPressed: eligible && !isClaimed
+                        ? () => _claim(stats, m, bonusPct)
+                        : null,
+                    child: Text('$m% $label'),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -179,7 +174,7 @@ class _BattlesPageState extends State<BattlesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('Battles')),
       body: FutureBuilder<_BattleVm>(
         future: _future,

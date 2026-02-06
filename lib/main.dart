@@ -166,8 +166,6 @@ class _HomeScaffoldState extends State<HomeScaffold> {
         currentIndex: _index,
         onTap: _setIndex,
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppTheme.primary,
-        unselectedItemColor: const Color(0xFFB5B0A7),
         showUnselectedLabels: true,
         items: const [
           BottomNavigationBarItem(

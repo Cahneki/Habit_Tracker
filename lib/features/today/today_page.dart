@@ -215,8 +215,17 @@ class _TodayPageState extends State<TodayPage> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'fab-today',
+        onPressed: _addHabit,
+        backgroundColor: scheme.primary,
+        foregroundColor: scheme.onPrimary,
+        child: const Icon(Icons.add),
+      ),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -235,146 +244,137 @@ class _TodayPageState extends State<TodayPage> {
 
                     final vm = snap.data!;
 
-                    return Stack(
-                      children: [
-                        RefreshIndicator(
-                          onRefresh: _refresh,
-                          color: AppTheme.primary,
-                          backgroundColor: Colors.white,
-                          child: SingleChildScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 140),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _TopBar(onRefresh: _refresh),
-                                const SizedBox(height: 14),
-                                _ProfileHeader(
-                                  level: vm.level,
-                                  rankTitle: rankTitleForLevel(vm.level),
-                                  rankSubtitle: 'Gold Tier Rank',
-                                ),
-                                const SizedBox(height: 16),
-                                _ExperienceCard(
-                                  xp: vm.xp,
-                                  xpGoal: vm.xpGoal,
-                                  xpToNext: vm.xpToNext,
-                                ),
-                                const SizedBox(height: 16),
-                                _StatsRow(gold: vm.gold, streak: vm.currentStreak),
-                                const SizedBox(height: 24),
-                                _SectionHeader(
-                                  title: 'Active Quests',
-                                  actionLabel: 'Manage',
-                                  onAction: widget.onOpenHabits,
-                                ),
-                                const SizedBox(height: 12),
-                                if (vm.rows.isEmpty)
-                                  _EmptyState(
-                                    onAdd: _addHabit,
-                                    title: 'No quests scheduled today',
-                                    subtitle: 'Edit schedules or add a new quest.',
-                                  )
-                                else
-                                  ...vm.rows.map(
-                                    (row) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 12),
-                                      child: _QuestCard(
-                                        row: row,
-                                        xpReward: xpForHabit(row.habit, row.stats),
-                                        statusLabel:
-                                            statusLabelFor(row.habit, row.stats),
-                                        urgent: isUrgent(row.habit, row.stats),
-                                        onComplete: () async {
-                                          final wasCompleted =
-                                              row.stats.completedToday;
-                                          await widget.repo.toggleCompletionForDay(
-                                            row.habit.id,
-                                            DateTime.now(),
-                                          );
-                                          await _refresh();
-                                          widget.onDataChanged();
-                                          if (!wasCompleted) {
-                                            widget.audio
-                                                .play(SoundEvent.complete);
-                                          }
-                                        },
-                                        onTap: () async {
-                                          await Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) => HabitDetailPage(
-                                                repo: widget.repo,
-                                                habit: row.habit,
-                                                onDataChanged: widget.onDataChanged,
-                                              ),
-                                            ),
-                                          );
-                                          await _refresh();
-                                          widget.onDataChanged();
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                if (vm.upcomingRows.isNotEmpty) ...[
-                                  const SizedBox(height: 16),
-                                  const Text(
-                                    'Upcoming',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Not scheduled today',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(color: AppTheme.muted),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  ...vm.upcomingRows.map(
-                                    (row) => Padding(
-                                      padding:
-                                          const EdgeInsets.only(bottom: 12),
-                                      child: _QuestCard(
-                                        row: row,
-                                        xpReward:
-                                            xpForHabit(row.habit, row.stats),
-                                        statusLabel: 'Not scheduled today',
-                                        urgent: false,
-                                        onComplete: null,
-                                        actionLabel: 'Not today',
-                                        onTap: () async {
-                                          await Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) => HabitDetailPage(
-                                                repo: widget.repo,
-                                                habit: row.habit,
-                                                onDataChanged:
-                                                    widget.onDataChanged,
-                                              ),
-                                            ),
-                                          );
-                                          await _refresh();
-                                          widget.onDataChanged();
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
+                    return RefreshIndicator(
+                      onRefresh: _refresh,
+                      color: scheme.primary,
+                      backgroundColor: scheme.surface,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 140),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _TopBar(onRefresh: _refresh),
+                            const SizedBox(height: 14),
+                            _ProfileHeader(
+                              level: vm.level,
+                              rankTitle: rankTitleForLevel(vm.level),
+                              rankSubtitle: 'Gold Tier Rank',
                             ),
-                          ),
+                            const SizedBox(height: 16),
+                            _ExperienceCard(
+                              xp: vm.xp,
+                              xpGoal: vm.xpGoal,
+                              xpToNext: vm.xpToNext,
+                            ),
+                            const SizedBox(height: 16),
+                            _StatsRow(gold: vm.gold, streak: vm.currentStreak),
+                            const SizedBox(height: 24),
+                            _SectionHeader(
+                              title: 'Active Quests',
+                              actionLabel: 'Manage',
+                              onAction: widget.onOpenHabits,
+                            ),
+                            const SizedBox(height: 12),
+                            if (vm.rows.isEmpty)
+                              _EmptyState(
+                                onAdd: _addHabit,
+                                title: 'No quests scheduled today',
+                                subtitle: 'Edit schedules or add a new quest.',
+                              )
+                            else
+                              ...vm.rows.map(
+                                (row) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: _QuestCard(
+                                    row: row,
+                                    xpReward: xpForHabit(row.habit, row.stats),
+                                    statusLabel:
+                                        statusLabelFor(row.habit, row.stats),
+                                    urgent: isUrgent(row.habit, row.stats),
+                                    onComplete: () async {
+                                      final wasCompleted =
+                                          row.stats.completedToday;
+                                      await widget.repo.toggleCompletionForDay(
+                                        row.habit.id,
+                                        DateTime.now(),
+                                      );
+                                      await _refresh();
+                                      widget.onDataChanged();
+                                      if (!wasCompleted) {
+                                        widget.audio.play(SoundEvent.complete);
+                                      }
+                                    },
+                                    onTap: () async {
+                                      await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => HabitDetailPage(
+                                            repo: widget.repo,
+                                            habit: row.habit,
+                                            onDataChanged: widget.onDataChanged,
+                                          ),
+                                        ),
+                                      );
+                                      await _refresh();
+                                      widget.onDataChanged();
+                                    },
+                                  ),
+                                ),
+                              ),
+                            if (vm.upcomingRows.isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Upcoming',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Not scheduled today',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                              ),
+                              const SizedBox(height: 10),
+                              ...vm.upcomingRows.map(
+                                (row) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: _QuestCard(
+                                    row: row,
+                                    xpReward: xpForHabit(row.habit, row.stats),
+                                    statusLabel: 'Not scheduled today',
+                                    urgent: false,
+                                    onComplete: null,
+                                    actionLabel: 'Not today',
+                                    onTap: () async {
+                                      await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => HabitDetailPage(
+                                            repo: widget.repo,
+                                            habit: row.habit,
+                                            onDataChanged: widget.onDataChanged,
+                                          ),
+                                        ),
+                                      );
+                                      await _refresh();
+                                      widget.onDataChanged();
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                        Positioned(
-                          right: 16,
-                          bottom: 86,
-                          child: _QuestFab(onPressed: _addHabit),
-                        ),
-                      ],
+                      ),
                     );
                   },
                 ),
@@ -393,18 +393,19 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: AppTheme.primary, width: 2),
+            border: Border.all(color: scheme.primary, width: 2),
           ),
-          child: const CircleAvatar(
+          child: CircleAvatar(
             radius: 18,
             backgroundImage: NetworkImage('https://i.imgur.com/4Z7wG2x.png'),
-            backgroundColor: AppTheme.parchment,
+            backgroundColor: scheme.surface,
           ),
         ),
         const SizedBox(width: 12),
@@ -436,6 +437,7 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -446,12 +448,12 @@ class _ProfileHeader extends StatelessWidget {
               height: 86,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: Colors.white, width: 3),
-                boxShadow: const [
+                border: Border.all(color: scheme.outline, width: 3),
+                boxShadow: [
                   BoxShadow(
-                    color: Color(0x26000000),
+                    color: scheme.shadow.withValues(alpha: 0.2),
                     blurRadius: 10,
-                    offset: Offset(0, 6),
+                    offset: const Offset(0, 6),
                   ),
                 ],
                 image: const DecorationImage(
@@ -466,20 +468,23 @@ class _ProfileHeader extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary,
+                  color: scheme.primary,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.auto_awesome_rounded,
-                        size: 14, color: AppTheme.ink),
+                    Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 14,
+                      color: scheme.onPrimary,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'LVL $level',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: AppTheme.ink,
+                        color: scheme.onPrimary,
                       ),
                     ),
                   ],
@@ -500,11 +505,11 @@ class _ProfileHeader extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 rankTitle.toUpperCase(),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1,
-                  color: AppTheme.muted,
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 6),
@@ -513,23 +518,23 @@ class _ProfileHeader extends StatelessWidget {
                   Container(
                     width: 16,
                     height: 16,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Color(0xFFFFD54A),
+                      color: scheme.tertiary,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.star_rounded,
                       size: 12,
-                      color: Color(0xFF7B5B00),
+                      color: scheme.onTertiary,
                     ),
                   ),
                   const SizedBox(width: 6),
                   Text(
                     rankSubtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.muted,
+                      color: scheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -555,73 +560,66 @@ class _ExperienceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final tokens = Theme.of(context).extension<GameTokens>()!;
     final progress = xpGoal == 0 ? 0.0 : (xp / xpGoal).clamp(0.0, 1.0);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFEFE7D5)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 10,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text(
-                'Experience',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(999),
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text(
+                  'Experience',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                 ),
-                child: Text(
-                  '$xp / $xpGoal XP',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.ink,
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: tokens.xpBadgeBg,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '$xp / $xpGoal XP',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: tokens.xpBadgeText,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 10,
-              backgroundColor: const Color(0xFFF1EEE6),
-              color: AppTheme.primary,
+              ],
             ),
-          ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              '$xpToNext XP TO LEVEL ${levelForXp(xp) + 1}',
-              style: const TextStyle(
-                fontSize: 10,
-                letterSpacing: 1.1,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.muted,
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 10,
+                backgroundColor: scheme.surface,
+                color: scheme.primary,
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '$xpToNext XP TO LEVEL ${levelForXp(xp) + 1}',
+                style: TextStyle(
+                  fontSize: 10,
+                  letterSpacing: 1.1,
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -635,6 +633,7 @@ class _StatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Row(
       children: [
         Expanded(
@@ -642,9 +641,7 @@ class _StatsRow extends StatelessWidget {
             title: 'Gold',
             value: gold.toString(),
             icon: Icons.monetization_on_rounded,
-            iconColor: const Color(0xFFD6A000),
-            background: AppTheme.goldCard,
-            borderColor: const Color(0xFFF0D9A8),
+            iconColor: scheme.tertiary,
           ),
         ),
         const SizedBox(width: 12),
@@ -653,9 +650,7 @@ class _StatsRow extends StatelessWidget {
             title: 'Streak',
             value: '$streak Days',
             icon: Icons.local_fire_department_rounded,
-            iconColor: const Color(0xFFDC4A4A),
-            background: AppTheme.streakCard,
-            borderColor: const Color(0xFFF4CFCF),
+            iconColor: scheme.error,
           ),
         ),
       ],
@@ -669,54 +664,48 @@ class _StatCard extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.iconColor,
-    required this.background,
-    required this.borderColor,
   });
 
   final String title;
   final String value;
   final IconData icon;
   final Color iconColor;
-  final Color background;
-  final Color borderColor;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: iconColor, size: 18),
-              const SizedBox(width: 6),
-              Text(
-                title.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1,
-                  color: iconColor,
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: iconColor, size: 18),
+                const SizedBox(width: 6),
+                Text(
+                  title.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: AppTheme.ink,
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -735,6 +724,7 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Row(
       children: [
         Text(
@@ -746,11 +736,11 @@ class _SectionHeader extends StatelessWidget {
           onPressed: onAction,
           child: Text(
             actionLabel.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.1,
-              color: AppTheme.primary,
+              color: scheme.primary,
             ),
           ),
         ),
@@ -781,27 +771,17 @@ class _QuestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icon = iconForHabit(row.habit.name);
-    final iconColor = iconColorForHabit(row.habit.name);
+    final scheme = Theme.of(context).colorScheme;
+    final tokens = Theme.of(context).extension<GameTokens>()!;
+    final iconColor = iconColorForHabit(row.habit.name, tokens);
 
-    return Material(
-      color: Colors.transparent,
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(26),
-        child: Ink(
+        child: Padding(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppTheme.parchment,
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: AppTheme.cardBorder, width: 2),
-            boxShadow: const [
-              BoxShadow(
-                color: AppTheme.cardShadow,
-                offset: Offset(0, 4),
-                blurRadius: 0,
-              ),
-            ],
-          ),
           child: Stack(
             children: [
               Positioned(
@@ -810,19 +790,19 @@ class _QuestCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppTheme.primary.withValues(alpha: 0.2),
+                    color: tokens.xpBadgeBg,
                     borderRadius: const BorderRadius.only(
                       bottomLeft: Radius.circular(16),
                       topRight: Radius.circular(20),
                     ),
-                    border: Border.all(color: AppTheme.cardBorder),
+                    border: Border.all(color: scheme.outline),
                   ),
                   child: Text(
                     '+$xpReward XP',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF1B7B4E),
+                      color: tokens.xpBadgeText,
                     ),
                   ),
                 ),
@@ -837,9 +817,9 @@ class _QuestCard extends StatelessWidget {
                         width: 56,
                         height: 56,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.6),
+                          color: scheme.surface,
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: AppTheme.cardBorder),
+                          border: Border.all(color: scheme.outline),
                         ),
                         child: Icon(icon, size: 30, color: iconColor),
                       ),
@@ -850,18 +830,18 @@ class _QuestCard extends StatelessWidget {
                           children: [
                             Text(
                               row.habit.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
-                                color: AppTheme.wood,
+                                color: scheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 6),
                             Text(
                               row.subtitle,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF8B6B5D),
+                                color: scheme.onSurfaceVariant,
                                 height: 1.3,
                               ),
                             ),
@@ -877,31 +857,31 @@ class _QuestCard extends StatelessWidget {
                         Container(
                           width: 8,
                           height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFF8A3D),
+                          decoration: BoxDecoration(
+                            color: tokens.urgentDot,
                             shape: BoxShape.circle,
                           ),
                         ),
                         const SizedBox(width: 6),
-                        const Text(
+                        Text(
                           'URGENT',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.1,
-                            color: Color(0xFFB4551E),
+                            color: tokens.urgentText,
                           ),
                         ),
                       ] else ...[
-                        const Icon(Icons.schedule_rounded,
-                            size: 14, color: Color(0xFF8B6B5D)),
+                        Icon(Icons.schedule_rounded,
+                            size: 14, color: scheme.onSurfaceVariant),
                         const SizedBox(width: 4),
                         Text(
                           statusLabel,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF8B6B5D),
+                            color: scheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -911,11 +891,12 @@ class _QuestCard extends StatelessWidget {
                         child: ElevatedButton(
                           onPressed: onComplete,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.wood,
-                            foregroundColor: Colors.white,
+                            backgroundColor: scheme.primary,
+                            foregroundColor: scheme.onPrimary,
                             disabledBackgroundColor:
-                                AppTheme.wood.withValues(alpha: 0.35),
-                            disabledForegroundColor: Colors.white70,
+                                scheme.primary.withValues(alpha: 0.35),
+                            disabledForegroundColor:
+                                scheme.onPrimary.withValues(alpha: 0.7),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 18,
                               vertical: 6,
@@ -926,13 +907,10 @@ class _QuestCard extends StatelessWidget {
                               fontWeight: FontWeight.w800,
                             ),
                           ),
-                          child:
-                              Text(
-                                actionLabel ??
-                                    (row.stats.completedToday
-                                        ? 'Undo'
-                                        : 'Complete'),
-                              ),
+                          child: Text(
+                            actionLabel ??
+                                (row.stats.completedToday ? 'Undo' : 'Complete'),
+                          ),
                         ),
                       ),
                     ],
@@ -960,67 +938,38 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFEFE7D5)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            style: const TextStyle(color: AppTheme.muted),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 40,
-            child: ElevatedButton(
-              onPressed: onAdd,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.wood,
-                foregroundColor: Colors.white,
-                shape: const StadiumBorder(),
-                textStyle: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-              child: const Text('Create Quest'),
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuestFab extends StatelessWidget {
-  const _QuestFab({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppTheme.primary,
-      shape: const CircleBorder(),
-      elevation: 10,
-      child: InkWell(
-        onTap: onPressed,
-        customBorder: const CircleBorder(),
-        child: Container(
-          width: 62,
-          height: 62,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 4),
-          ),
-          child: const Icon(Icons.add, size: 32, color: AppTheme.ink),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 40,
+              child: ElevatedButton(
+                onPressed: onAdd,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: scheme.primary,
+                  foregroundColor: scheme.onPrimary,
+                  shape: const StadiumBorder(),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                child: const Text('Create Quest'),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1035,8 +984,9 @@ class _IconCircleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: Colors.white,
+      color: scheme.surface,
       shape: const CircleBorder(),
       elevation: 2,
       child: InkWell(
@@ -1045,7 +995,7 @@ class _IconCircleButton extends StatelessWidget {
         child: SizedBox(
           width: 42,
           height: 42,
-          child: Icon(icon, size: 22, color: AppTheme.ink),
+          child: Icon(icon, size: 22, color: scheme.onSurface),
         ),
       ),
     );
@@ -1092,20 +1042,20 @@ IconData iconForHabit(String name) {
   return Icons.auto_awesome_rounded;
 }
 
-Color iconColorForHabit(String name) {
+Color iconColorForHabit(String name, GameTokens tokens) {
   final lower = name.toLowerCase();
   if (lower.contains('water') || lower.contains('hydrate')) {
-    return const Color(0xFF2B8CFF);
+    return tokens.habitWater;
   }
   if (lower.contains('read') || lower.contains('book')) {
-    return const Color(0xFFB35C00);
+    return tokens.habitRead;
   }
-  if (lower.contains('sleep')) return const Color(0xFF6C4BB5);
+  if (lower.contains('sleep')) return tokens.habitSleep;
   if (lower.contains('run') || lower.contains('cardio')) {
-    return const Color(0xFF1B9B6F);
+    return tokens.habitRun;
   }
   if (lower.contains('lift') || lower.contains('gym') || lower.contains('workout')) {
-    return const Color(0xFF8B5E34);
+    return tokens.habitLift;
   }
-  return const Color(0xFF4A2C2A);
+  return tokens.habitDefault;
 }
