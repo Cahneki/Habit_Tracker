@@ -58,6 +58,12 @@ class _SettingsPageState extends State<SettingsPage> {
     widget.onDataChanged();
   }
 
+  Future<void> _updateTheme(String themeId) async {
+    await widget.settingsRepo.setThemeId(themeId);
+    _refresh();
+    widget.onDataChanged();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -98,6 +104,28 @@ class _SettingsPageState extends State<SettingsPage> {
                     onChanged: (value) {
                       if (value == null) return;
                       _updateSoundPack(value);
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              InputDecorator(
+                decoration: const InputDecoration(labelText: 'Theme'),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: settings.themeId,
+                    isExpanded: true,
+                    items: AppTheme.options
+                        .map(
+                          (t) => DropdownMenuItem(
+                            value: t.id,
+                            child: Text(t.label),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      _updateTheme(value);
                     },
                   ),
                 ),

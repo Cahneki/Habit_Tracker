@@ -112,6 +112,7 @@ class _AvatarPageState extends State<AvatarPage> {
     for (final id in equipped.values) {
       final item = byId[id];
       if (item == null) continue;
+      if (!item.damageEligible) continue;
       sum += item.damageBonusPct;
     }
     return sum;

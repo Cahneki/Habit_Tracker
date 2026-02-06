@@ -14,12 +14,13 @@ part 'app_db.g.dart';
   UserSettings,
   EquippedCosmetics,
   BattleRewardsClaimed,
+  XpEvents,
 ])
 class AppDb extends _$AppDb {
   AppDb() : super(_openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -51,6 +52,13 @@ class AppDb extends _$AppDb {
           }
           if (from < 5) {
             await migrator.createTable(battleRewardsClaimed);
+          }
+          if (from < 6) {
+            await migrator.addColumn(habits, habits.baseXp);
+            await migrator.createTable(xpEvents);
+          }
+          if (from < 7) {
+            await migrator.addColumn(userSettings, userSettings.themeId);
           }
         },
       );

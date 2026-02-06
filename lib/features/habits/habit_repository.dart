@@ -82,12 +82,14 @@ class HabitRepository {
     required String id,
     required String name,
     required int scheduleMask,
+    int baseXp = 20,
   }) async {
     final now = DateTime.now();
     await db.into(db.habits).insert(
           HabitsCompanion.insert(
             id: id,
             name: name,
+            baseXp: Value(baseXp),
             createdAt: now.millisecondsSinceEpoch,
             archivedAt: const Value.absent(),
             scheduleMask: Value(scheduleMask),
@@ -353,6 +355,12 @@ class HabitRepository {
     return rows.length;
   }
 
+  Future<int> getXpEventsTotal() async {
+    final rows = await db.select(db.xpEvents).get();
+    if (rows.isEmpty) return 0;
+    return rows.fold<int>(0, (sum, r) => sum + r.amount);
+  }
+
   Future<int> computeTotalXp() async {
     final habits = await listHabits();
     if (habits.isEmpty) return 0;
@@ -401,6 +409,7 @@ class HabitRepository {
       }
     }
 
-    return totalXp;
+    final bonusXp = await getXpEventsTotal();
+    return totalXp + bonusXp;
   }
 }

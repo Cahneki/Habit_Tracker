@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 class Habits extends Table {
   TextColumn get id => text()(); // e.g. uuid
   TextColumn get name => text()();
+  IntColumn get baseXp => integer().withDefault(const Constant(20))();
   IntColumn get createdAt => integer()(); // epoch ms
   IntColumn get archivedAt => integer().nullable()(); // epoch ms
   IntColumn get scheduleMask => integer().nullable()(); // bitmask: 0=Mon .. 6=Sun
@@ -30,6 +31,7 @@ class UserSettings extends Table {
   IntColumn get id => integer().withDefault(const Constant(1))();
   BoolColumn get soundEnabled => boolean().withDefault(const Constant(true))();
   TextColumn get soundPackId => text().withDefault(const Constant('system'))();
+  TextColumn get themeId => text().withDefault(const Constant('forest'))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -50,4 +52,15 @@ class BattleRewardsClaimed extends Table {
 
   @override
   Set<Column> get primaryKey => {battleId, milestone};
+}
+
+class XpEvents extends Table {
+  TextColumn get eventId => text()(); // deterministic id (battle_id + milestone)
+  TextColumn get source => text()(); // e.g. battle
+  TextColumn get battleId => text()(); // week_YYYY-MM-DD or month_YYYY-MM
+  IntColumn get amount => integer()(); // positive XP
+  TextColumn get createdAt => text()(); // ISO timestamp
+
+  @override
+  Set<Column> get primaryKey => {eventId};
 }

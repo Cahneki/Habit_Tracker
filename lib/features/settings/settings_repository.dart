@@ -40,4 +40,15 @@ class SettingsRepository {
           ),
         );
   }
+
+  Future<void> setThemeId(String themeId) async {
+    await db
+        .into(db.userSettings)
+        .insertOnConflictUpdate(
+          UserSettingsCompanion(
+            id: const Value(1),
+            themeId: Value(themeId),
+          ),
+        );
+  }
 }

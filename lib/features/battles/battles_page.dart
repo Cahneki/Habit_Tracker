@@ -79,8 +79,10 @@ class _BattlesPageState extends State<BattlesPage> {
     );
   }
 
-  Future<void> _claim(String battleId, int milestone) async {
-    await widget.rewardsRepo.claim(battleId, milestone);
+  Future<void> _claim(BattleStats stats, int milestone, double bonusPct) async {
+    final xpAmount =
+        (stats.earnedXpWindow * bonusPct * (milestone / 100.0)).round();
+    await widget.rewardsRepo.claim(stats.id, milestone, xpAmount);
     _refresh();
     widget.onDataChanged();
   }
@@ -94,6 +96,7 @@ class _BattlesPageState extends State<BattlesPage> {
     final percent = (stats.progressPct * 100).round();
     final densityPct = (stats.density * 100).round();
     final xpBonus = (stats.earnedXpWindow * bonusPct).round();
+    const epsilon = 1e-9;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -145,7 +148,7 @@ class _BattlesPageState extends State<BattlesPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'XP bonus: +$xpBonus (display only)',
+            'XP bonus: +$xpBonus total (claimable)',
             style: const TextStyle(color: AppTheme.muted),
           ),
           const SizedBox(height: 12),
@@ -153,14 +156,15 @@ class _BattlesPageState extends State<BattlesPage> {
             spacing: 8,
             runSpacing: 8,
             children: [50, 75, 100].map((m) {
-              final eligible = stats.progressPct >= (m / 100.0);
+              final eligible =
+                  stats.progressPct + epsilon >= (m / 100.0);
               final isClaimed = claimed.contains(m);
               final label = isClaimed ? 'Claimed' : (eligible ? 'Claim' : 'Locked');
               return SizedBox(
                 height: 34,
                 child: OutlinedButton(
                   onPressed: eligible && !isClaimed
-                      ? () => _claim(stats.id, m)
+                      ? () => _claim(stats, m, bonusPct)
                       : null,
                   child: Text('$m% $label'),
                 ),

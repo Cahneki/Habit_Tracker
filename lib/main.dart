@@ -31,6 +31,7 @@ class _MyAppState extends State<MyApp> {
   late final AvatarRepository avatarRepo;
   late final BattleRewardsRepository battleRewardsRepo;
   late final AudioService audio;
+  late Future<UserSetting> _settingsFuture;
 
   @override
   void initState() {
@@ -41,6 +42,7 @@ class _MyAppState extends State<MyApp> {
     avatarRepo = AvatarRepository(db);
     battleRewardsRepo = BattleRewardsRepository(db);
     audio = AudioService(settingsRepo);
+    _settingsFuture = settingsRepo.getSettings();
   }
 
   @override
@@ -51,16 +53,27 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme(),
-      home: HomeScaffold(
-        repo: repo,
-        settingsRepo: settingsRepo,
-        avatarRepo: avatarRepo,
-        battleRewardsRepo: battleRewardsRepo,
-        audio: audio,
-      ),
+    return FutureBuilder<UserSetting>(
+      future: _settingsFuture,
+      builder: (context, snap) {
+        final themeId = snap.data?.themeId ?? 'forest';
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.themeForId(themeId),
+          home: HomeScaffold(
+            repo: repo,
+            settingsRepo: settingsRepo,
+            avatarRepo: avatarRepo,
+            battleRewardsRepo: battleRewardsRepo,
+            audio: audio,
+            onThemeChanged: () {
+              setState(() {
+                _settingsFuture = settingsRepo.getSettings();
+              });
+            },
+          ),
+        );
+      },
     );
   }
 }
@@ -73,6 +86,7 @@ class HomeScaffold extends StatefulWidget {
     required this.avatarRepo,
     required this.battleRewardsRepo,
     required this.audio,
+    required this.onThemeChanged,
   });
 
   final HabitRepository repo;
@@ -80,6 +94,7 @@ class HomeScaffold extends StatefulWidget {
   final AvatarRepository avatarRepo;
   final BattleRewardsRepository battleRewardsRepo;
   final AudioService audio;
+  final VoidCallback onThemeChanged;
 
   @override
   State<HomeScaffold> createState() => _HomeScaffoldState();
@@ -138,7 +153,10 @@ class _HomeScaffoldState extends State<HomeScaffold> {
         settingsRepo: widget.settingsRepo,
         audio: widget.audio,
         dataVersion: _dataVersion,
-        onDataChanged: _notifyDataChanged,
+        onDataChanged: () {
+          _notifyDataChanged();
+          widget.onThemeChanged();
+        },
       ),
     ];
 

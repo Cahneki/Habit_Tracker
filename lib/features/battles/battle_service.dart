@@ -18,7 +18,6 @@ class BattleStats {
     required this.hp,
     required this.progressPct,
     required this.earnedXpWindow,
-    required this.baseDamage,
     required this.daysLeft,
   });
 
@@ -36,7 +35,6 @@ class BattleStats {
   final int hp;
   final double progressPct;
   final int earnedXpWindow;
-  final int baseDamage;
   final int daysLeft;
 }
 
@@ -45,13 +43,12 @@ class BattleService {
   final HabitRepository repo;
   final AvatarRepository avatarRepo;
 
-  static const int baseXpPerHabit = 20;
   static const double equipCap = 0.15;
   static const double weekMultiplier = 1.15;
   static const double monthMultiplier = 1.25;
 
-  int _baseDamageForHabit() {
-    final dmg = 8 + (baseXpPerHabit ~/ 5);
+  int _baseDamageForHabit(int baseXp) {
+    final dmg = 8 + (baseXp ~/ 5);
     if (dmg < 8) return 8;
     if (dmg > 14) return 14;
     return dmg;
@@ -74,6 +71,7 @@ class BattleService {
     for (final id in equipped.values) {
       final item = byId[id];
       if (item == null) continue;
+      if (!item.damageEligible) continue;
       sum += item.damageBonusPct;
     }
     return sum;
@@ -91,9 +89,8 @@ class BattleService {
 
   Future<BattleStats> computeWeekly() async {
     final now = DateTime.now();
-    final todayStart = startOfLocalDay(now);
-    final weekStart =
-        todayStart.subtract(Duration(days: todayStart.weekday - 1));
+    final offset = now.weekday - DateTime.monday;
+    final weekStart = startOfLocalDay(now).subtract(Duration(days: offset));
     final weekEndExclusive = weekStart.add(const Duration(days: 7));
     final id = weeklyBattleId(weekStart);
     return _computeWindow(id, weekStart, weekEndExclusive, weekMultiplier);
@@ -114,7 +111,7 @@ class BattleService {
     DateTime endExclusive,
     double multiplier,
   ) async {
-    final habits = await repo.listActiveHabits();
+    final habits = await repo.listHabits();
     final habitIds = habits.map((h) => h.id).toList();
     final completionsByHabit =
         await repo.getCompletionDaysForRangeByHabit(
@@ -125,23 +122,33 @@ class BattleService {
 
     var scheduledTotal = 0;
     var completedTotal = 0;
-    final baseDamage = _baseDamageForHabit();
+    var rawDamage = 0;
+    var expectedDamage = 0;
+    var earnedXpWindow = 0;
 
     for (final habit in habits) {
       final completedDays = completionsByHabit[habit.id] ?? const <String>{};
+      var scheduled = 0;
+      var completed = 0;
       for (var d = start;
           d.isBefore(endExclusive);
           d = d.add(const Duration(days: 1))) {
         if (!_isScheduled(d, habit.scheduleMask)) continue;
         scheduledTotal += 1;
+        scheduled += 1;
         if (completedDays.contains(localDay(d))) {
           completedTotal += 1;
+          completed += 1;
         }
       }
+      if (scheduled == 0) continue;
+      final baseXp = habit.baseXp;
+      final baseDamage = _baseDamageForHabit(baseXp);
+      rawDamage += completed * baseDamage;
+      expectedDamage += scheduled * baseDamage;
+      earnedXpWindow += completed * baseXp;
     }
 
-    final rawDamage = completedTotal * baseDamage;
-    final expectedDamage = scheduledTotal * baseDamage;
     final equipPct = await _equipBonusPct();
     final equipPctCapped = equipPct > equipCap ? equipCap : equipPct;
     final damage = (rawDamage * (1 + equipPctCapped)).round();
@@ -150,7 +157,6 @@ class BattleService {
         hp == 0 ? 0.0 : (damage / hp).clamp(0.0, 1.0);
     final density =
         scheduledTotal == 0 ? 0.0 : completedTotal / scheduledTotal;
-    final earnedXpWindow = completedTotal * baseXpPerHabit;
     final daysLeft =
         endExclusive.difference(startOfLocalDay(DateTime.now())).inDays;
 
@@ -169,7 +175,6 @@ class BattleService {
       hp: hp,
       progressPct: progressPct,
       earnedXpWindow: earnedXpWindow,
-      baseDamage: baseDamage,
       daysLeft: daysLeft < 0 ? 0 : daysLeft,
     );
   }

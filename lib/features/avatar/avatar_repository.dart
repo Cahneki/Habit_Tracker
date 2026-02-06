@@ -11,6 +11,7 @@ class CosmeticItem {
     required this.icon,
     required this.color,
     required this.damageBonusPct,
+    required this.damageEligible,
   });
 
   final String id;
@@ -20,6 +21,7 @@ class CosmeticItem {
   final IconData icon;
   final Color color;
   final double damageBonusPct;
+  final bool damageEligible;
 }
 
 class AvatarRepository {
@@ -39,6 +41,7 @@ class AvatarRepository {
       icon: Icons.hiking_rounded,
       color: Color(0xFF8B5E34),
       damageBonusPct: 0.02,
+      damageEligible: false,
     ),
     CosmeticItem(
       id: 'head_crown',
@@ -48,6 +51,7 @@ class AvatarRepository {
       icon: Icons.emoji_nature_rounded,
       color: Color(0xFF2B8C4A),
       damageBonusPct: 0.03,
+      damageEligible: false,
     ),
     CosmeticItem(
       id: 'body_tunic',
@@ -57,6 +61,7 @@ class AvatarRepository {
       icon: Icons.checkroom_rounded,
       color: Color(0xFF4A2C2A),
       damageBonusPct: 0.02,
+      damageEligible: false,
     ),
     CosmeticItem(
       id: 'body_armor',
@@ -66,6 +71,7 @@ class AvatarRepository {
       icon: Icons.shield_rounded,
       color: Color(0xFFB0793D),
       damageBonusPct: 0.04,
+      damageEligible: false,
     ),
     CosmeticItem(
       id: 'acc_pouch',
@@ -75,6 +81,7 @@ class AvatarRepository {
       icon: Icons.backpack_rounded,
       color: Color(0xFF8B5E34),
       damageBonusPct: 0.02,
+      damageEligible: true,
     ),
     CosmeticItem(
       id: 'acc_compass',
@@ -84,6 +91,7 @@ class AvatarRepository {
       icon: Icons.explore_rounded,
       color: Color(0xFF3E5C76),
       damageBonusPct: 0.04,
+      damageEligible: true,
     ),
   ];
 

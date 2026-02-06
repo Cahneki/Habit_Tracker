@@ -26,6 +26,16 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _baseXpMeta = const VerificationMeta('baseXp');
+  @override
+  late final GeneratedColumn<int> baseXp = GeneratedColumn<int>(
+    'base_xp',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(20),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -63,6 +73,7 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
   List<GeneratedColumn> get $columns => [
     id,
     name,
+    baseXp,
     createdAt,
     archivedAt,
     scheduleMask,
@@ -91,6 +102,12 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
       );
     } else if (isInserting) {
       context.missing(_nameMeta);
+    }
+    if (data.containsKey('base_xp')) {
+      context.handle(
+        _baseXpMeta,
+        baseXp.isAcceptableOrUnknown(data['base_xp']!, _baseXpMeta),
+      );
     }
     if (data.containsKey('created_at')) {
       context.handle(
@@ -132,6 +149,10 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         DriftSqlType.string,
         data['${effectivePrefix}name'],
       )!,
+      baseXp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}base_xp'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -156,12 +177,14 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
 class Habit extends DataClass implements Insertable<Habit> {
   final String id;
   final String name;
+  final int baseXp;
   final int createdAt;
   final int? archivedAt;
   final int? scheduleMask;
   const Habit({
     required this.id,
     required this.name,
+    required this.baseXp,
     required this.createdAt,
     this.archivedAt,
     this.scheduleMask,
@@ -171,6 +194,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
+    map['base_xp'] = Variable<int>(baseXp);
     map['created_at'] = Variable<int>(createdAt);
     if (!nullToAbsent || archivedAt != null) {
       map['archived_at'] = Variable<int>(archivedAt);
@@ -185,6 +209,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     return HabitsCompanion(
       id: Value(id),
       name: Value(name),
+      baseXp: Value(baseXp),
       createdAt: Value(createdAt),
       archivedAt: archivedAt == null && nullToAbsent
           ? const Value.absent()
@@ -203,6 +228,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     return Habit(
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
+      baseXp: serializer.fromJson<int>(json['baseXp']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       archivedAt: serializer.fromJson<int?>(json['archivedAt']),
       scheduleMask: serializer.fromJson<int?>(json['scheduleMask']),
@@ -214,6 +240,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
+      'baseXp': serializer.toJson<int>(baseXp),
       'createdAt': serializer.toJson<int>(createdAt),
       'archivedAt': serializer.toJson<int?>(archivedAt),
       'scheduleMask': serializer.toJson<int?>(scheduleMask),
@@ -223,12 +250,14 @@ class Habit extends DataClass implements Insertable<Habit> {
   Habit copyWith({
     String? id,
     String? name,
+    int? baseXp,
     int? createdAt,
     Value<int?> archivedAt = const Value.absent(),
     Value<int?> scheduleMask = const Value.absent(),
   }) => Habit(
     id: id ?? this.id,
     name: name ?? this.name,
+    baseXp: baseXp ?? this.baseXp,
     createdAt: createdAt ?? this.createdAt,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     scheduleMask: scheduleMask.present ? scheduleMask.value : this.scheduleMask,
@@ -237,6 +266,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     return Habit(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
+      baseXp: data.baseXp.present ? data.baseXp.value : this.baseXp,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       archivedAt: data.archivedAt.present
           ? data.archivedAt.value
@@ -252,6 +282,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     return (StringBuffer('Habit(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('baseXp: $baseXp, ')
           ..write('createdAt: $createdAt, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('scheduleMask: $scheduleMask')
@@ -261,13 +292,14 @@ class Habit extends DataClass implements Insertable<Habit> {
 
   @override
   int get hashCode =>
-      Object.hash(id, name, createdAt, archivedAt, scheduleMask);
+      Object.hash(id, name, baseXp, createdAt, archivedAt, scheduleMask);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Habit &&
           other.id == this.id &&
           other.name == this.name &&
+          other.baseXp == this.baseXp &&
           other.createdAt == this.createdAt &&
           other.archivedAt == this.archivedAt &&
           other.scheduleMask == this.scheduleMask);
@@ -276,6 +308,7 @@ class Habit extends DataClass implements Insertable<Habit> {
 class HabitsCompanion extends UpdateCompanion<Habit> {
   final Value<String> id;
   final Value<String> name;
+  final Value<int> baseXp;
   final Value<int> createdAt;
   final Value<int?> archivedAt;
   final Value<int?> scheduleMask;
@@ -283,6 +316,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
   const HabitsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
+    this.baseXp = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.archivedAt = const Value.absent(),
     this.scheduleMask = const Value.absent(),
@@ -291,6 +325,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
   HabitsCompanion.insert({
     required String id,
     required String name,
+    this.baseXp = const Value.absent(),
     required int createdAt,
     this.archivedAt = const Value.absent(),
     this.scheduleMask = const Value.absent(),
@@ -301,6 +336,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
   static Insertable<Habit> custom({
     Expression<String>? id,
     Expression<String>? name,
+    Expression<int>? baseXp,
     Expression<int>? createdAt,
     Expression<int>? archivedAt,
     Expression<int>? scheduleMask,
@@ -309,6 +345,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
+      if (baseXp != null) 'base_xp': baseXp,
       if (createdAt != null) 'created_at': createdAt,
       if (archivedAt != null) 'archived_at': archivedAt,
       if (scheduleMask != null) 'schedule_mask': scheduleMask,
@@ -319,6 +356,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
   HabitsCompanion copyWith({
     Value<String>? id,
     Value<String>? name,
+    Value<int>? baseXp,
     Value<int>? createdAt,
     Value<int?>? archivedAt,
     Value<int?>? scheduleMask,
@@ -327,6 +365,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     return HabitsCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
+      baseXp: baseXp ?? this.baseXp,
       createdAt: createdAt ?? this.createdAt,
       archivedAt: archivedAt ?? this.archivedAt,
       scheduleMask: scheduleMask ?? this.scheduleMask,
@@ -342,6 +381,9 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
+    }
+    if (baseXp.present) {
+      map['base_xp'] = Variable<int>(baseXp.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
@@ -363,6 +405,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     return (StringBuffer('HabitsCompanion(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('baseXp: $baseXp, ')
           ..write('createdAt: $createdAt, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('scheduleMask: $scheduleMask, ')
@@ -737,8 +780,25 @@ class $UserSettingsTable extends UserSettings
     requiredDuringInsert: false,
     defaultValue: const Constant('system'),
   );
+  static const VerificationMeta _themeIdMeta = const VerificationMeta(
+    'themeId',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, soundEnabled, soundPackId];
+  late final GeneratedColumn<String> themeId = GeneratedColumn<String>(
+    'theme_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('forest'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    soundEnabled,
+    soundPackId,
+    themeId,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -772,6 +832,12 @@ class $UserSettingsTable extends UserSettings
         ),
       );
     }
+    if (data.containsKey('theme_id')) {
+      context.handle(
+        _themeIdMeta,
+        themeId.isAcceptableOrUnknown(data['theme_id']!, _themeIdMeta),
+      );
+    }
     return context;
   }
 
@@ -793,6 +859,10 @@ class $UserSettingsTable extends UserSettings
         DriftSqlType.string,
         data['${effectivePrefix}sound_pack_id'],
       )!,
+      themeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}theme_id'],
+      )!,
     );
   }
 
@@ -806,10 +876,12 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
   final int id;
   final bool soundEnabled;
   final String soundPackId;
+  final String themeId;
   const UserSetting({
     required this.id,
     required this.soundEnabled,
     required this.soundPackId,
+    required this.themeId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -817,6 +889,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     map['id'] = Variable<int>(id);
     map['sound_enabled'] = Variable<bool>(soundEnabled);
     map['sound_pack_id'] = Variable<String>(soundPackId);
+    map['theme_id'] = Variable<String>(themeId);
     return map;
   }
 
@@ -825,6 +898,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       id: Value(id),
       soundEnabled: Value(soundEnabled),
       soundPackId: Value(soundPackId),
+      themeId: Value(themeId),
     );
   }
 
@@ -837,6 +911,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       id: serializer.fromJson<int>(json['id']),
       soundEnabled: serializer.fromJson<bool>(json['soundEnabled']),
       soundPackId: serializer.fromJson<String>(json['soundPackId']),
+      themeId: serializer.fromJson<String>(json['themeId']),
     );
   }
   @override
@@ -846,15 +921,21 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       'id': serializer.toJson<int>(id),
       'soundEnabled': serializer.toJson<bool>(soundEnabled),
       'soundPackId': serializer.toJson<String>(soundPackId),
+      'themeId': serializer.toJson<String>(themeId),
     };
   }
 
-  UserSetting copyWith({int? id, bool? soundEnabled, String? soundPackId}) =>
-      UserSetting(
-        id: id ?? this.id,
-        soundEnabled: soundEnabled ?? this.soundEnabled,
-        soundPackId: soundPackId ?? this.soundPackId,
-      );
+  UserSetting copyWith({
+    int? id,
+    bool? soundEnabled,
+    String? soundPackId,
+    String? themeId,
+  }) => UserSetting(
+    id: id ?? this.id,
+    soundEnabled: soundEnabled ?? this.soundEnabled,
+    soundPackId: soundPackId ?? this.soundPackId,
+    themeId: themeId ?? this.themeId,
+  );
   UserSetting copyWithCompanion(UserSettingsCompanion data) {
     return UserSetting(
       id: data.id.present ? data.id.value : this.id,
@@ -864,6 +945,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       soundPackId: data.soundPackId.present
           ? data.soundPackId.value
           : this.soundPackId,
+      themeId: data.themeId.present ? data.themeId.value : this.themeId,
     );
   }
 
@@ -872,45 +954,52 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     return (StringBuffer('UserSetting(')
           ..write('id: $id, ')
           ..write('soundEnabled: $soundEnabled, ')
-          ..write('soundPackId: $soundPackId')
+          ..write('soundPackId: $soundPackId, ')
+          ..write('themeId: $themeId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, soundEnabled, soundPackId);
+  int get hashCode => Object.hash(id, soundEnabled, soundPackId, themeId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is UserSetting &&
           other.id == this.id &&
           other.soundEnabled == this.soundEnabled &&
-          other.soundPackId == this.soundPackId);
+          other.soundPackId == this.soundPackId &&
+          other.themeId == this.themeId);
 }
 
 class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
   final Value<int> id;
   final Value<bool> soundEnabled;
   final Value<String> soundPackId;
+  final Value<String> themeId;
   const UserSettingsCompanion({
     this.id = const Value.absent(),
     this.soundEnabled = const Value.absent(),
     this.soundPackId = const Value.absent(),
+    this.themeId = const Value.absent(),
   });
   UserSettingsCompanion.insert({
     this.id = const Value.absent(),
     this.soundEnabled = const Value.absent(),
     this.soundPackId = const Value.absent(),
+    this.themeId = const Value.absent(),
   });
   static Insertable<UserSetting> custom({
     Expression<int>? id,
     Expression<bool>? soundEnabled,
     Expression<String>? soundPackId,
+    Expression<String>? themeId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (soundEnabled != null) 'sound_enabled': soundEnabled,
       if (soundPackId != null) 'sound_pack_id': soundPackId,
+      if (themeId != null) 'theme_id': themeId,
     });
   }
 
@@ -918,11 +1007,13 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     Value<int>? id,
     Value<bool>? soundEnabled,
     Value<String>? soundPackId,
+    Value<String>? themeId,
   }) {
     return UserSettingsCompanion(
       id: id ?? this.id,
       soundEnabled: soundEnabled ?? this.soundEnabled,
       soundPackId: soundPackId ?? this.soundPackId,
+      themeId: themeId ?? this.themeId,
     );
   }
 
@@ -938,6 +1029,9 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     if (soundPackId.present) {
       map['sound_pack_id'] = Variable<String>(soundPackId.value);
     }
+    if (themeId.present) {
+      map['theme_id'] = Variable<String>(themeId.value);
+    }
     return map;
   }
 
@@ -946,7 +1040,8 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     return (StringBuffer('UserSettingsCompanion(')
           ..write('id: $id, ')
           ..write('soundEnabled: $soundEnabled, ')
-          ..write('soundPackId: $soundPackId')
+          ..write('soundPackId: $soundPackId, ')
+          ..write('themeId: $themeId')
           ..write(')'))
         .toString();
   }
@@ -1447,6 +1542,368 @@ class BattleRewardsClaimedCompanion
   }
 }
 
+class $XpEventsTable extends XpEvents with TableInfo<$XpEventsTable, XpEvent> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $XpEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _eventIdMeta = const VerificationMeta(
+    'eventId',
+  );
+  @override
+  late final GeneratedColumn<String> eventId = GeneratedColumn<String>(
+    'event_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _battleIdMeta = const VerificationMeta(
+    'battleId',
+  );
+  @override
+  late final GeneratedColumn<String> battleId = GeneratedColumn<String>(
+    'battle_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<int> amount = GeneratedColumn<int>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    eventId,
+    source,
+    battleId,
+    amount,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'xp_events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<XpEvent> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('event_id')) {
+      context.handle(
+        _eventIdMeta,
+        eventId.isAcceptableOrUnknown(data['event_id']!, _eventIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_eventIdMeta);
+    }
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceMeta);
+    }
+    if (data.containsKey('battle_id')) {
+      context.handle(
+        _battleIdMeta,
+        battleId.isAcceptableOrUnknown(data['battle_id']!, _battleIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_battleIdMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {eventId};
+  @override
+  XpEvent map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return XpEvent(
+      eventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}event_id'],
+      )!,
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      )!,
+      battleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}battle_id'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $XpEventsTable createAlias(String alias) {
+    return $XpEventsTable(attachedDatabase, alias);
+  }
+}
+
+class XpEvent extends DataClass implements Insertable<XpEvent> {
+  final String eventId;
+  final String source;
+  final String battleId;
+  final int amount;
+  final String createdAt;
+  const XpEvent({
+    required this.eventId,
+    required this.source,
+    required this.battleId,
+    required this.amount,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['event_id'] = Variable<String>(eventId);
+    map['source'] = Variable<String>(source);
+    map['battle_id'] = Variable<String>(battleId);
+    map['amount'] = Variable<int>(amount);
+    map['created_at'] = Variable<String>(createdAt);
+    return map;
+  }
+
+  XpEventsCompanion toCompanion(bool nullToAbsent) {
+    return XpEventsCompanion(
+      eventId: Value(eventId),
+      source: Value(source),
+      battleId: Value(battleId),
+      amount: Value(amount),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory XpEvent.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return XpEvent(
+      eventId: serializer.fromJson<String>(json['eventId']),
+      source: serializer.fromJson<String>(json['source']),
+      battleId: serializer.fromJson<String>(json['battleId']),
+      amount: serializer.fromJson<int>(json['amount']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'eventId': serializer.toJson<String>(eventId),
+      'source': serializer.toJson<String>(source),
+      'battleId': serializer.toJson<String>(battleId),
+      'amount': serializer.toJson<int>(amount),
+      'createdAt': serializer.toJson<String>(createdAt),
+    };
+  }
+
+  XpEvent copyWith({
+    String? eventId,
+    String? source,
+    String? battleId,
+    int? amount,
+    String? createdAt,
+  }) => XpEvent(
+    eventId: eventId ?? this.eventId,
+    source: source ?? this.source,
+    battleId: battleId ?? this.battleId,
+    amount: amount ?? this.amount,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  XpEvent copyWithCompanion(XpEventsCompanion data) {
+    return XpEvent(
+      eventId: data.eventId.present ? data.eventId.value : this.eventId,
+      source: data.source.present ? data.source.value : this.source,
+      battleId: data.battleId.present ? data.battleId.value : this.battleId,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('XpEvent(')
+          ..write('eventId: $eventId, ')
+          ..write('source: $source, ')
+          ..write('battleId: $battleId, ')
+          ..write('amount: $amount, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(eventId, source, battleId, amount, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is XpEvent &&
+          other.eventId == this.eventId &&
+          other.source == this.source &&
+          other.battleId == this.battleId &&
+          other.amount == this.amount &&
+          other.createdAt == this.createdAt);
+}
+
+class XpEventsCompanion extends UpdateCompanion<XpEvent> {
+  final Value<String> eventId;
+  final Value<String> source;
+  final Value<String> battleId;
+  final Value<int> amount;
+  final Value<String> createdAt;
+  final Value<int> rowid;
+  const XpEventsCompanion({
+    this.eventId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.battleId = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  XpEventsCompanion.insert({
+    required String eventId,
+    required String source,
+    required String battleId,
+    required int amount,
+    required String createdAt,
+    this.rowid = const Value.absent(),
+  }) : eventId = Value(eventId),
+       source = Value(source),
+       battleId = Value(battleId),
+       amount = Value(amount),
+       createdAt = Value(createdAt);
+  static Insertable<XpEvent> custom({
+    Expression<String>? eventId,
+    Expression<String>? source,
+    Expression<String>? battleId,
+    Expression<int>? amount,
+    Expression<String>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (eventId != null) 'event_id': eventId,
+      if (source != null) 'source': source,
+      if (battleId != null) 'battle_id': battleId,
+      if (amount != null) 'amount': amount,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  XpEventsCompanion copyWith({
+    Value<String>? eventId,
+    Value<String>? source,
+    Value<String>? battleId,
+    Value<int>? amount,
+    Value<String>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return XpEventsCompanion(
+      eventId: eventId ?? this.eventId,
+      source: source ?? this.source,
+      battleId: battleId ?? this.battleId,
+      amount: amount ?? this.amount,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (eventId.present) {
+      map['event_id'] = Variable<String>(eventId.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (battleId.present) {
+      map['battle_id'] = Variable<String>(battleId.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<int>(amount.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('XpEventsCompanion(')
+          ..write('eventId: $eventId, ')
+          ..write('source: $source, ')
+          ..write('battleId: $battleId, ')
+          ..write('amount: $amount, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDb extends GeneratedDatabase {
   _$AppDb(QueryExecutor e) : super(e);
   $AppDbManager get managers => $AppDbManager(this);
@@ -1459,6 +1916,7 @@ abstract class _$AppDb extends GeneratedDatabase {
       $EquippedCosmeticsTable(this);
   late final $BattleRewardsClaimedTable battleRewardsClaimed =
       $BattleRewardsClaimedTable(this);
+  late final $XpEventsTable xpEvents = $XpEventsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1469,6 +1927,7 @@ abstract class _$AppDb extends GeneratedDatabase {
     userSettings,
     equippedCosmetics,
     battleRewardsClaimed,
+    xpEvents,
   ];
 }
 
@@ -1476,6 +1935,7 @@ typedef $$HabitsTableCreateCompanionBuilder =
     HabitsCompanion Function({
       required String id,
       required String name,
+      Value<int> baseXp,
       required int createdAt,
       Value<int?> archivedAt,
       Value<int?> scheduleMask,
@@ -1485,6 +1945,7 @@ typedef $$HabitsTableUpdateCompanionBuilder =
     HabitsCompanion Function({
       Value<String> id,
       Value<String> name,
+      Value<int> baseXp,
       Value<int> createdAt,
       Value<int?> archivedAt,
       Value<int?> scheduleMask,
@@ -1531,6 +1992,11 @@ class $$HabitsTableFilterComposer extends Composer<_$AppDb, $HabitsTable> {
 
   ColumnFilters<String> get name => $composableBuilder(
     column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get baseXp => $composableBuilder(
+    column: $table.baseXp,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1593,6 +2059,11 @@ class $$HabitsTableOrderingComposer extends Composer<_$AppDb, $HabitsTable> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get baseXp => $composableBuilder(
+    column: $table.baseXp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -1622,6 +2093,9 @@ class $$HabitsTableAnnotationComposer extends Composer<_$AppDb, $HabitsTable> {
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get baseXp =>
+      $composableBuilder(column: $table.baseXp, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -1692,6 +2166,7 @@ class $$HabitsTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
+                Value<int> baseXp = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int?> archivedAt = const Value.absent(),
                 Value<int?> scheduleMask = const Value.absent(),
@@ -1699,6 +2174,7 @@ class $$HabitsTableTableManager
               }) => HabitsCompanion(
                 id: id,
                 name: name,
+                baseXp: baseXp,
                 createdAt: createdAt,
                 archivedAt: archivedAt,
                 scheduleMask: scheduleMask,
@@ -1708,6 +2184,7 @@ class $$HabitsTableTableManager
               ({
                 required String id,
                 required String name,
+                Value<int> baseXp = const Value.absent(),
                 required int createdAt,
                 Value<int?> archivedAt = const Value.absent(),
                 Value<int?> scheduleMask = const Value.absent(),
@@ -1715,6 +2192,7 @@ class $$HabitsTableTableManager
               }) => HabitsCompanion.insert(
                 id: id,
                 name: name,
+                baseXp: baseXp,
                 createdAt: createdAt,
                 archivedAt: archivedAt,
                 scheduleMask: scheduleMask,
@@ -2087,12 +2565,14 @@ typedef $$UserSettingsTableCreateCompanionBuilder =
       Value<int> id,
       Value<bool> soundEnabled,
       Value<String> soundPackId,
+      Value<String> themeId,
     });
 typedef $$UserSettingsTableUpdateCompanionBuilder =
     UserSettingsCompanion Function({
       Value<int> id,
       Value<bool> soundEnabled,
       Value<String> soundPackId,
+      Value<String> themeId,
     });
 
 class $$UserSettingsTableFilterComposer
@@ -2116,6 +2596,11 @@ class $$UserSettingsTableFilterComposer
 
   ColumnFilters<String> get soundPackId => $composableBuilder(
     column: $table.soundPackId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get themeId => $composableBuilder(
+    column: $table.themeId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2143,6 +2628,11 @@ class $$UserSettingsTableOrderingComposer
     column: $table.soundPackId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get themeId => $composableBuilder(
+    column: $table.themeId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$UserSettingsTableAnnotationComposer
@@ -2166,6 +2656,9 @@ class $$UserSettingsTableAnnotationComposer
     column: $table.soundPackId,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get themeId =>
+      $composableBuilder(column: $table.themeId, builder: (column) => column);
 }
 
 class $$UserSettingsTableTableManager
@@ -2202,20 +2695,24 @@ class $$UserSettingsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<bool> soundEnabled = const Value.absent(),
                 Value<String> soundPackId = const Value.absent(),
+                Value<String> themeId = const Value.absent(),
               }) => UserSettingsCompanion(
                 id: id,
                 soundEnabled: soundEnabled,
                 soundPackId: soundPackId,
+                themeId: themeId,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 Value<bool> soundEnabled = const Value.absent(),
                 Value<String> soundPackId = const Value.absent(),
+                Value<String> themeId = const Value.absent(),
               }) => UserSettingsCompanion.insert(
                 id: id,
                 soundEnabled: soundEnabled,
                 soundPackId: soundPackId,
+                themeId: themeId,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -2567,6 +3064,199 @@ typedef $$BattleRewardsClaimedTableProcessedTableManager =
       BattleRewardsClaimedData,
       PrefetchHooks Function()
     >;
+typedef $$XpEventsTableCreateCompanionBuilder =
+    XpEventsCompanion Function({
+      required String eventId,
+      required String source,
+      required String battleId,
+      required int amount,
+      required String createdAt,
+      Value<int> rowid,
+    });
+typedef $$XpEventsTableUpdateCompanionBuilder =
+    XpEventsCompanion Function({
+      Value<String> eventId,
+      Value<String> source,
+      Value<String> battleId,
+      Value<int> amount,
+      Value<String> createdAt,
+      Value<int> rowid,
+    });
+
+class $$XpEventsTableFilterComposer extends Composer<_$AppDb, $XpEventsTable> {
+  $$XpEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get eventId => $composableBuilder(
+    column: $table.eventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get battleId => $composableBuilder(
+    column: $table.battleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$XpEventsTableOrderingComposer
+    extends Composer<_$AppDb, $XpEventsTable> {
+  $$XpEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get eventId => $composableBuilder(
+    column: $table.eventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get battleId => $composableBuilder(
+    column: $table.battleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$XpEventsTableAnnotationComposer
+    extends Composer<_$AppDb, $XpEventsTable> {
+  $$XpEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get eventId =>
+      $composableBuilder(column: $table.eventId, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get battleId =>
+      $composableBuilder(column: $table.battleId, builder: (column) => column);
+
+  GeneratedColumn<int> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$XpEventsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDb,
+          $XpEventsTable,
+          XpEvent,
+          $$XpEventsTableFilterComposer,
+          $$XpEventsTableOrderingComposer,
+          $$XpEventsTableAnnotationComposer,
+          $$XpEventsTableCreateCompanionBuilder,
+          $$XpEventsTableUpdateCompanionBuilder,
+          (XpEvent, BaseReferences<_$AppDb, $XpEventsTable, XpEvent>),
+          XpEvent,
+          PrefetchHooks Function()
+        > {
+  $$XpEventsTableTableManager(_$AppDb db, $XpEventsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$XpEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$XpEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$XpEventsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> eventId = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<String> battleId = const Value.absent(),
+                Value<int> amount = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => XpEventsCompanion(
+                eventId: eventId,
+                source: source,
+                battleId: battleId,
+                amount: amount,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String eventId,
+                required String source,
+                required String battleId,
+                required int amount,
+                required String createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => XpEventsCompanion.insert(
+                eventId: eventId,
+                source: source,
+                battleId: battleId,
+                amount: amount,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$XpEventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDb,
+      $XpEventsTable,
+      XpEvent,
+      $$XpEventsTableFilterComposer,
+      $$XpEventsTableOrderingComposer,
+      $$XpEventsTableAnnotationComposer,
+      $$XpEventsTableCreateCompanionBuilder,
+      $$XpEventsTableUpdateCompanionBuilder,
+      (XpEvent, BaseReferences<_$AppDb, $XpEventsTable, XpEvent>),
+      XpEvent,
+      PrefetchHooks Function()
+    >;
 
 class $AppDbManager {
   final _$AppDb _db;
@@ -2581,4 +3271,6 @@ class $AppDbManager {
       $$EquippedCosmeticsTableTableManager(_db, _db.equippedCosmetics);
   $$BattleRewardsClaimedTableTableManager get battleRewardsClaimed =>
       $$BattleRewardsClaimedTableTableManager(_db, _db.battleRewardsClaimed);
+  $$XpEventsTableTableManager get xpEvents =>
+      $$XpEventsTableTableManager(_db, _db.xpEvents);
 }
