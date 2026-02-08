@@ -69,6 +69,18 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _timeOfDayMeta = const VerificationMeta(
+    'timeOfDay',
+  );
+  @override
+  late final GeneratedColumn<String> timeOfDay = GeneratedColumn<String>(
+    'time_of_day',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('morning'),
+  );
   static const VerificationMeta _iconIdMeta = const VerificationMeta('iconId');
   @override
   late final GeneratedColumn<String> iconId = GeneratedColumn<String>(
@@ -99,6 +111,7 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     createdAt,
     archivedAt,
     scheduleMask,
+    timeOfDay,
     iconId,
     iconPath,
   ];
@@ -156,6 +169,12 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         ),
       );
     }
+    if (data.containsKey('time_of_day')) {
+      context.handle(
+        _timeOfDayMeta,
+        timeOfDay.isAcceptableOrUnknown(data['time_of_day']!, _timeOfDayMeta),
+      );
+    }
     if (data.containsKey('icon_id')) {
       context.handle(
         _iconIdMeta,
@@ -201,6 +220,10 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         DriftSqlType.int,
         data['${effectivePrefix}schedule_mask'],
       ),
+      timeOfDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}time_of_day'],
+      )!,
       iconId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}icon_id'],
@@ -225,6 +248,7 @@ class Habit extends DataClass implements Insertable<Habit> {
   final int createdAt;
   final int? archivedAt;
   final int? scheduleMask;
+  final String timeOfDay;
   final String iconId;
   final String iconPath;
   const Habit({
@@ -234,6 +258,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     required this.createdAt,
     this.archivedAt,
     this.scheduleMask,
+    required this.timeOfDay,
     required this.iconId,
     required this.iconPath,
   });
@@ -250,6 +275,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     if (!nullToAbsent || scheduleMask != null) {
       map['schedule_mask'] = Variable<int>(scheduleMask);
     }
+    map['time_of_day'] = Variable<String>(timeOfDay);
     map['icon_id'] = Variable<String>(iconId);
     map['icon_path'] = Variable<String>(iconPath);
     return map;
@@ -267,6 +293,7 @@ class Habit extends DataClass implements Insertable<Habit> {
       scheduleMask: scheduleMask == null && nullToAbsent
           ? const Value.absent()
           : Value(scheduleMask),
+      timeOfDay: Value(timeOfDay),
       iconId: Value(iconId),
       iconPath: Value(iconPath),
     );
@@ -284,6 +311,7 @@ class Habit extends DataClass implements Insertable<Habit> {
       createdAt: serializer.fromJson<int>(json['createdAt']),
       archivedAt: serializer.fromJson<int?>(json['archivedAt']),
       scheduleMask: serializer.fromJson<int?>(json['scheduleMask']),
+      timeOfDay: serializer.fromJson<String>(json['timeOfDay']),
       iconId: serializer.fromJson<String>(json['iconId']),
       iconPath: serializer.fromJson<String>(json['iconPath']),
     );
@@ -298,6 +326,7 @@ class Habit extends DataClass implements Insertable<Habit> {
       'createdAt': serializer.toJson<int>(createdAt),
       'archivedAt': serializer.toJson<int?>(archivedAt),
       'scheduleMask': serializer.toJson<int?>(scheduleMask),
+      'timeOfDay': serializer.toJson<String>(timeOfDay),
       'iconId': serializer.toJson<String>(iconId),
       'iconPath': serializer.toJson<String>(iconPath),
     };
@@ -310,6 +339,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     int? createdAt,
     Value<int?> archivedAt = const Value.absent(),
     Value<int?> scheduleMask = const Value.absent(),
+    String? timeOfDay,
     String? iconId,
     String? iconPath,
   }) => Habit(
@@ -319,6 +349,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     createdAt: createdAt ?? this.createdAt,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     scheduleMask: scheduleMask.present ? scheduleMask.value : this.scheduleMask,
+    timeOfDay: timeOfDay ?? this.timeOfDay,
     iconId: iconId ?? this.iconId,
     iconPath: iconPath ?? this.iconPath,
   );
@@ -334,6 +365,7 @@ class Habit extends DataClass implements Insertable<Habit> {
       scheduleMask: data.scheduleMask.present
           ? data.scheduleMask.value
           : this.scheduleMask,
+      timeOfDay: data.timeOfDay.present ? data.timeOfDay.value : this.timeOfDay,
       iconId: data.iconId.present ? data.iconId.value : this.iconId,
       iconPath: data.iconPath.present ? data.iconPath.value : this.iconPath,
     );
@@ -348,6 +380,7 @@ class Habit extends DataClass implements Insertable<Habit> {
           ..write('createdAt: $createdAt, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('scheduleMask: $scheduleMask, ')
+          ..write('timeOfDay: $timeOfDay, ')
           ..write('iconId: $iconId, ')
           ..write('iconPath: $iconPath')
           ..write(')'))
@@ -362,6 +395,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     createdAt,
     archivedAt,
     scheduleMask,
+    timeOfDay,
     iconId,
     iconPath,
   );
@@ -375,6 +409,7 @@ class Habit extends DataClass implements Insertable<Habit> {
           other.createdAt == this.createdAt &&
           other.archivedAt == this.archivedAt &&
           other.scheduleMask == this.scheduleMask &&
+          other.timeOfDay == this.timeOfDay &&
           other.iconId == this.iconId &&
           other.iconPath == this.iconPath);
 }
@@ -386,6 +421,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
   final Value<int> createdAt;
   final Value<int?> archivedAt;
   final Value<int?> scheduleMask;
+  final Value<String> timeOfDay;
   final Value<String> iconId;
   final Value<String> iconPath;
   final Value<int> rowid;
@@ -396,6 +432,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     this.createdAt = const Value.absent(),
     this.archivedAt = const Value.absent(),
     this.scheduleMask = const Value.absent(),
+    this.timeOfDay = const Value.absent(),
     this.iconId = const Value.absent(),
     this.iconPath = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -407,6 +444,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     required int createdAt,
     this.archivedAt = const Value.absent(),
     this.scheduleMask = const Value.absent(),
+    this.timeOfDay = const Value.absent(),
     this.iconId = const Value.absent(),
     this.iconPath = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -420,6 +458,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Expression<int>? createdAt,
     Expression<int>? archivedAt,
     Expression<int>? scheduleMask,
+    Expression<String>? timeOfDay,
     Expression<String>? iconId,
     Expression<String>? iconPath,
     Expression<int>? rowid,
@@ -431,6 +470,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       if (createdAt != null) 'created_at': createdAt,
       if (archivedAt != null) 'archived_at': archivedAt,
       if (scheduleMask != null) 'schedule_mask': scheduleMask,
+      if (timeOfDay != null) 'time_of_day': timeOfDay,
       if (iconId != null) 'icon_id': iconId,
       if (iconPath != null) 'icon_path': iconPath,
       if (rowid != null) 'rowid': rowid,
@@ -444,6 +484,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Value<int>? createdAt,
     Value<int?>? archivedAt,
     Value<int?>? scheduleMask,
+    Value<String>? timeOfDay,
     Value<String>? iconId,
     Value<String>? iconPath,
     Value<int>? rowid,
@@ -455,6 +496,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       createdAt: createdAt ?? this.createdAt,
       archivedAt: archivedAt ?? this.archivedAt,
       scheduleMask: scheduleMask ?? this.scheduleMask,
+      timeOfDay: timeOfDay ?? this.timeOfDay,
       iconId: iconId ?? this.iconId,
       iconPath: iconPath ?? this.iconPath,
       rowid: rowid ?? this.rowid,
@@ -482,6 +524,9 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     if (scheduleMask.present) {
       map['schedule_mask'] = Variable<int>(scheduleMask.value);
     }
+    if (timeOfDay.present) {
+      map['time_of_day'] = Variable<String>(timeOfDay.value);
+    }
     if (iconId.present) {
       map['icon_id'] = Variable<String>(iconId.value);
     }
@@ -503,6 +548,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
           ..write('createdAt: $createdAt, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('scheduleMask: $scheduleMask, ')
+          ..write('timeOfDay: $timeOfDay, ')
           ..write('iconId: $iconId, ')
           ..write('iconPath: $iconPath, ')
           ..write('rowid: $rowid')
@@ -961,6 +1007,32 @@ class $UserSettingsTable extends UserSettings
     requiredDuringInsert: false,
     defaultValue: const Constant('forest'),
   );
+  static const VerificationMeta _profileAvatarModeMeta = const VerificationMeta(
+    'profileAvatarMode',
+  );
+  @override
+  late final GeneratedColumn<String> profileAvatarMode =
+      GeneratedColumn<String>(
+        'profile_avatar_mode',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('character'),
+      );
+  static const VerificationMeta _profileAvatarPathMeta = const VerificationMeta(
+    'profileAvatarPath',
+  );
+  @override
+  late final GeneratedColumn<String> profileAvatarPath =
+      GeneratedColumn<String>(
+        'profile_avatar_path',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(''),
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -973,6 +1045,8 @@ class $UserSettingsTable extends UserSettings
     soundLevelUpPath,
     soundEquipPath,
     themeId,
+    profileAvatarMode,
+    profileAvatarPath,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1067,6 +1141,24 @@ class $UserSettingsTable extends UserSettings
         themeId.isAcceptableOrUnknown(data['theme_id']!, _themeIdMeta),
       );
     }
+    if (data.containsKey('profile_avatar_mode')) {
+      context.handle(
+        _profileAvatarModeMeta,
+        profileAvatarMode.isAcceptableOrUnknown(
+          data['profile_avatar_mode']!,
+          _profileAvatarModeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('profile_avatar_path')) {
+      context.handle(
+        _profileAvatarPathMeta,
+        profileAvatarPath.isAcceptableOrUnknown(
+          data['profile_avatar_path']!,
+          _profileAvatarPathMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1116,6 +1208,14 @@ class $UserSettingsTable extends UserSettings
         DriftSqlType.string,
         data['${effectivePrefix}theme_id'],
       )!,
+      profileAvatarMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile_avatar_mode'],
+      )!,
+      profileAvatarPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile_avatar_path'],
+      )!,
     );
   }
 
@@ -1136,6 +1236,8 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
   final String soundLevelUpPath;
   final String soundEquipPath;
   final String themeId;
+  final String profileAvatarMode;
+  final String profileAvatarPath;
   const UserSetting({
     required this.id,
     required this.soundEnabled,
@@ -1147,6 +1249,8 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     required this.soundLevelUpPath,
     required this.soundEquipPath,
     required this.themeId,
+    required this.profileAvatarMode,
+    required this.profileAvatarPath,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1161,6 +1265,8 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     map['sound_level_up_path'] = Variable<String>(soundLevelUpPath);
     map['sound_equip_path'] = Variable<String>(soundEquipPath);
     map['theme_id'] = Variable<String>(themeId);
+    map['profile_avatar_mode'] = Variable<String>(profileAvatarMode);
+    map['profile_avatar_path'] = Variable<String>(profileAvatarPath);
     return map;
   }
 
@@ -1176,6 +1282,8 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       soundLevelUpPath: Value(soundLevelUpPath),
       soundEquipPath: Value(soundEquipPath),
       themeId: Value(themeId),
+      profileAvatarMode: Value(profileAvatarMode),
+      profileAvatarPath: Value(profileAvatarPath),
     );
   }
 
@@ -1195,6 +1303,8 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       soundLevelUpPath: serializer.fromJson<String>(json['soundLevelUpPath']),
       soundEquipPath: serializer.fromJson<String>(json['soundEquipPath']),
       themeId: serializer.fromJson<String>(json['themeId']),
+      profileAvatarMode: serializer.fromJson<String>(json['profileAvatarMode']),
+      profileAvatarPath: serializer.fromJson<String>(json['profileAvatarPath']),
     );
   }
   @override
@@ -1211,6 +1321,8 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       'soundLevelUpPath': serializer.toJson<String>(soundLevelUpPath),
       'soundEquipPath': serializer.toJson<String>(soundEquipPath),
       'themeId': serializer.toJson<String>(themeId),
+      'profileAvatarMode': serializer.toJson<String>(profileAvatarMode),
+      'profileAvatarPath': serializer.toJson<String>(profileAvatarPath),
     };
   }
 
@@ -1225,6 +1337,8 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     String? soundLevelUpPath,
     String? soundEquipPath,
     String? themeId,
+    String? profileAvatarMode,
+    String? profileAvatarPath,
   }) => UserSetting(
     id: id ?? this.id,
     soundEnabled: soundEnabled ?? this.soundEnabled,
@@ -1236,6 +1350,8 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     soundLevelUpPath: soundLevelUpPath ?? this.soundLevelUpPath,
     soundEquipPath: soundEquipPath ?? this.soundEquipPath,
     themeId: themeId ?? this.themeId,
+    profileAvatarMode: profileAvatarMode ?? this.profileAvatarMode,
+    profileAvatarPath: profileAvatarPath ?? this.profileAvatarPath,
   );
   UserSetting copyWithCompanion(UserSettingsCompanion data) {
     return UserSetting(
@@ -1265,6 +1381,12 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
           ? data.soundEquipPath.value
           : this.soundEquipPath,
       themeId: data.themeId.present ? data.themeId.value : this.themeId,
+      profileAvatarMode: data.profileAvatarMode.present
+          ? data.profileAvatarMode.value
+          : this.profileAvatarMode,
+      profileAvatarPath: data.profileAvatarPath.present
+          ? data.profileAvatarPath.value
+          : this.profileAvatarPath,
     );
   }
 
@@ -1280,7 +1402,9 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
           ..write('soundCompletePath: $soundCompletePath, ')
           ..write('soundLevelUpPath: $soundLevelUpPath, ')
           ..write('soundEquipPath: $soundEquipPath, ')
-          ..write('themeId: $themeId')
+          ..write('themeId: $themeId, ')
+          ..write('profileAvatarMode: $profileAvatarMode, ')
+          ..write('profileAvatarPath: $profileAvatarPath')
           ..write(')'))
         .toString();
   }
@@ -1297,6 +1421,8 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     soundLevelUpPath,
     soundEquipPath,
     themeId,
+    profileAvatarMode,
+    profileAvatarPath,
   );
   @override
   bool operator ==(Object other) =>
@@ -1311,7 +1437,9 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
           other.soundCompletePath == this.soundCompletePath &&
           other.soundLevelUpPath == this.soundLevelUpPath &&
           other.soundEquipPath == this.soundEquipPath &&
-          other.themeId == this.themeId);
+          other.themeId == this.themeId &&
+          other.profileAvatarMode == this.profileAvatarMode &&
+          other.profileAvatarPath == this.profileAvatarPath);
 }
 
 class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
@@ -1325,6 +1453,8 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
   final Value<String> soundLevelUpPath;
   final Value<String> soundEquipPath;
   final Value<String> themeId;
+  final Value<String> profileAvatarMode;
+  final Value<String> profileAvatarPath;
   const UserSettingsCompanion({
     this.id = const Value.absent(),
     this.soundEnabled = const Value.absent(),
@@ -1336,6 +1466,8 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     this.soundLevelUpPath = const Value.absent(),
     this.soundEquipPath = const Value.absent(),
     this.themeId = const Value.absent(),
+    this.profileAvatarMode = const Value.absent(),
+    this.profileAvatarPath = const Value.absent(),
   });
   UserSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -1348,6 +1480,8 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     this.soundLevelUpPath = const Value.absent(),
     this.soundEquipPath = const Value.absent(),
     this.themeId = const Value.absent(),
+    this.profileAvatarMode = const Value.absent(),
+    this.profileAvatarPath = const Value.absent(),
   });
   static Insertable<UserSetting> custom({
     Expression<int>? id,
@@ -1360,6 +1494,8 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     Expression<String>? soundLevelUpPath,
     Expression<String>? soundEquipPath,
     Expression<String>? themeId,
+    Expression<String>? profileAvatarMode,
+    Expression<String>? profileAvatarPath,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1372,6 +1508,8 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
       if (soundLevelUpPath != null) 'sound_level_up_path': soundLevelUpPath,
       if (soundEquipPath != null) 'sound_equip_path': soundEquipPath,
       if (themeId != null) 'theme_id': themeId,
+      if (profileAvatarMode != null) 'profile_avatar_mode': profileAvatarMode,
+      if (profileAvatarPath != null) 'profile_avatar_path': profileAvatarPath,
     });
   }
 
@@ -1386,6 +1524,8 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     Value<String>? soundLevelUpPath,
     Value<String>? soundEquipPath,
     Value<String>? themeId,
+    Value<String>? profileAvatarMode,
+    Value<String>? profileAvatarPath,
   }) {
     return UserSettingsCompanion(
       id: id ?? this.id,
@@ -1398,6 +1538,8 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
       soundLevelUpPath: soundLevelUpPath ?? this.soundLevelUpPath,
       soundEquipPath: soundEquipPath ?? this.soundEquipPath,
       themeId: themeId ?? this.themeId,
+      profileAvatarMode: profileAvatarMode ?? this.profileAvatarMode,
+      profileAvatarPath: profileAvatarPath ?? this.profileAvatarPath,
     );
   }
 
@@ -1434,6 +1576,12 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     if (themeId.present) {
       map['theme_id'] = Variable<String>(themeId.value);
     }
+    if (profileAvatarMode.present) {
+      map['profile_avatar_mode'] = Variable<String>(profileAvatarMode.value);
+    }
+    if (profileAvatarPath.present) {
+      map['profile_avatar_path'] = Variable<String>(profileAvatarPath.value);
+    }
     return map;
   }
 
@@ -1449,7 +1597,9 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
           ..write('soundCompletePath: $soundCompletePath, ')
           ..write('soundLevelUpPath: $soundLevelUpPath, ')
           ..write('soundEquipPath: $soundEquipPath, ')
-          ..write('themeId: $themeId')
+          ..write('themeId: $themeId, ')
+          ..write('profileAvatarMode: $profileAvatarMode, ')
+          ..write('profileAvatarPath: $profileAvatarPath')
           ..write(')'))
         .toString();
   }
@@ -2347,6 +2497,7 @@ typedef $$HabitsTableCreateCompanionBuilder =
       required int createdAt,
       Value<int?> archivedAt,
       Value<int?> scheduleMask,
+      Value<String> timeOfDay,
       Value<String> iconId,
       Value<String> iconPath,
       Value<int> rowid,
@@ -2359,6 +2510,7 @@ typedef $$HabitsTableUpdateCompanionBuilder =
       Value<int> createdAt,
       Value<int?> archivedAt,
       Value<int?> scheduleMask,
+      Value<String> timeOfDay,
       Value<String> iconId,
       Value<String> iconPath,
       Value<int> rowid,
@@ -2424,6 +2576,11 @@ class $$HabitsTableFilterComposer extends Composer<_$AppDb, $HabitsTable> {
 
   ColumnFilters<int> get scheduleMask => $composableBuilder(
     column: $table.scheduleMask,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get timeOfDay => $composableBuilder(
+    column: $table.timeOfDay,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2501,6 +2658,11 @@ class $$HabitsTableOrderingComposer extends Composer<_$AppDb, $HabitsTable> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get timeOfDay => $composableBuilder(
+    column: $table.timeOfDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get iconId => $composableBuilder(
     column: $table.iconId,
     builder: (column) => ColumnOrderings(column),
@@ -2541,6 +2703,9 @@ class $$HabitsTableAnnotationComposer extends Composer<_$AppDb, $HabitsTable> {
     column: $table.scheduleMask,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get timeOfDay =>
+      $composableBuilder(column: $table.timeOfDay, builder: (column) => column);
 
   GeneratedColumn<String> get iconId =>
       $composableBuilder(column: $table.iconId, builder: (column) => column);
@@ -2608,6 +2773,7 @@ class $$HabitsTableTableManager
                 Value<int> createdAt = const Value.absent(),
                 Value<int?> archivedAt = const Value.absent(),
                 Value<int?> scheduleMask = const Value.absent(),
+                Value<String> timeOfDay = const Value.absent(),
                 Value<String> iconId = const Value.absent(),
                 Value<String> iconPath = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -2618,6 +2784,7 @@ class $$HabitsTableTableManager
                 createdAt: createdAt,
                 archivedAt: archivedAt,
                 scheduleMask: scheduleMask,
+                timeOfDay: timeOfDay,
                 iconId: iconId,
                 iconPath: iconPath,
                 rowid: rowid,
@@ -2630,6 +2797,7 @@ class $$HabitsTableTableManager
                 required int createdAt,
                 Value<int?> archivedAt = const Value.absent(),
                 Value<int?> scheduleMask = const Value.absent(),
+                Value<String> timeOfDay = const Value.absent(),
                 Value<String> iconId = const Value.absent(),
                 Value<String> iconPath = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -2640,6 +2808,7 @@ class $$HabitsTableTableManager
                 createdAt: createdAt,
                 archivedAt: archivedAt,
                 scheduleMask: scheduleMask,
+                timeOfDay: timeOfDay,
                 iconId: iconId,
                 iconPath: iconPath,
                 rowid: rowid,
@@ -3018,6 +3187,8 @@ typedef $$UserSettingsTableCreateCompanionBuilder =
       Value<String> soundLevelUpPath,
       Value<String> soundEquipPath,
       Value<String> themeId,
+      Value<String> profileAvatarMode,
+      Value<String> profileAvatarPath,
     });
 typedef $$UserSettingsTableUpdateCompanionBuilder =
     UserSettingsCompanion Function({
@@ -3031,6 +3202,8 @@ typedef $$UserSettingsTableUpdateCompanionBuilder =
       Value<String> soundLevelUpPath,
       Value<String> soundEquipPath,
       Value<String> themeId,
+      Value<String> profileAvatarMode,
+      Value<String> profileAvatarPath,
     });
 
 class $$UserSettingsTableFilterComposer
@@ -3089,6 +3262,16 @@ class $$UserSettingsTableFilterComposer
 
   ColumnFilters<String> get themeId => $composableBuilder(
     column: $table.themeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get profileAvatarMode => $composableBuilder(
+    column: $table.profileAvatarMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get profileAvatarPath => $composableBuilder(
+    column: $table.profileAvatarPath,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3151,6 +3334,16 @@ class $$UserSettingsTableOrderingComposer
     column: $table.themeId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get profileAvatarMode => $composableBuilder(
+    column: $table.profileAvatarMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get profileAvatarPath => $composableBuilder(
+    column: $table.profileAvatarPath,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$UserSettingsTableAnnotationComposer
@@ -3207,6 +3400,16 @@ class $$UserSettingsTableAnnotationComposer
 
   GeneratedColumn<String> get themeId =>
       $composableBuilder(column: $table.themeId, builder: (column) => column);
+
+  GeneratedColumn<String> get profileAvatarMode => $composableBuilder(
+    column: $table.profileAvatarMode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get profileAvatarPath => $composableBuilder(
+    column: $table.profileAvatarPath,
+    builder: (column) => column,
+  );
 }
 
 class $$UserSettingsTableTableManager
@@ -3250,6 +3453,8 @@ class $$UserSettingsTableTableManager
                 Value<String> soundLevelUpPath = const Value.absent(),
                 Value<String> soundEquipPath = const Value.absent(),
                 Value<String> themeId = const Value.absent(),
+                Value<String> profileAvatarMode = const Value.absent(),
+                Value<String> profileAvatarPath = const Value.absent(),
               }) => UserSettingsCompanion(
                 id: id,
                 soundEnabled: soundEnabled,
@@ -3261,6 +3466,8 @@ class $$UserSettingsTableTableManager
                 soundLevelUpPath: soundLevelUpPath,
                 soundEquipPath: soundEquipPath,
                 themeId: themeId,
+                profileAvatarMode: profileAvatarMode,
+                profileAvatarPath: profileAvatarPath,
               ),
           createCompanionCallback:
               ({
@@ -3274,6 +3481,8 @@ class $$UserSettingsTableTableManager
                 Value<String> soundLevelUpPath = const Value.absent(),
                 Value<String> soundEquipPath = const Value.absent(),
                 Value<String> themeId = const Value.absent(),
+                Value<String> profileAvatarMode = const Value.absent(),
+                Value<String> profileAvatarPath = const Value.absent(),
               }) => UserSettingsCompanion.insert(
                 id: id,
                 soundEnabled: soundEnabled,
@@ -3285,6 +3494,8 @@ class $$UserSettingsTableTableManager
                 soundLevelUpPath: soundLevelUpPath,
                 soundEquipPath: soundEquipPath,
                 themeId: themeId,
+                profileAvatarMode: profileAvatarMode,
+                profileAvatarPath: profileAvatarPath,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

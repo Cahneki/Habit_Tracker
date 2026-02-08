@@ -100,6 +100,7 @@ class HabitRepository {
     int baseXp = 20,
     String iconId = 'magic',
     String iconPath = '',
+    String timeOfDay = 'morning',
   }) async {
     final now = DateTime.now();
     await db.into(db.habits).insert(
@@ -110,6 +111,7 @@ class HabitRepository {
             createdAt: now.millisecondsSinceEpoch,
             archivedAt: const Value.absent(),
             scheduleMask: Value(scheduleMask),
+            timeOfDay: Value(timeOfDay),
             iconId: Value(iconId),
             iconPath: Value(iconPath),
           ),
@@ -128,6 +130,12 @@ class HabitRepository {
       HabitsCompanion(scheduleMask: Value(scheduleMask)),
     );
     _invalidateDerivedCaches();
+  }
+
+  Future<void> updateTimeOfDay(String habitId, String timeOfDay) async {
+    await (db.update(db.habits)..where((h) => h.id.equals(habitId))).write(
+      HabitsCompanion(timeOfDay: Value(timeOfDay)),
+    );
   }
 
   Future<void> updateHabitIcon(String habitId, String iconId) async {

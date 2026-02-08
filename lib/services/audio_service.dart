@@ -26,6 +26,8 @@ class AudioService {
 
   static const List<SoundPack> packs = [
     SoundPack(id: 'interface', name: 'Interface Sounds'),
+    SoundPack(id: 'celestial', name: 'Celestial'),
+    SoundPack(id: 'dungeon', name: 'Dungeon'),
     SoundPack(id: 'custom', name: 'Custom'),
   ];
 

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../services/audio_service.dart';
 import '../../shared/xp_utils.dart';
+import '../../shared/profile_avatar.dart';
+import '../../db/app_db.dart';
 import 'avatar_repository.dart';
 import '../habits/habit_repository.dart';
+import '../settings/settings_repository.dart';
 
 class AvatarPage extends StatefulWidget {
   const AvatarPage({
@@ -10,6 +13,7 @@ class AvatarPage extends StatefulWidget {
     required this.repo,
     required this.avatarRepo,
     required this.audio,
+    required this.settingsRepo,
     required this.dataVersion,
     required this.onDataChanged,
   });
@@ -17,6 +21,7 @@ class AvatarPage extends StatefulWidget {
   final HabitRepository repo;
   final AvatarRepository avatarRepo;
   final AudioService audio;
+  final SettingsRepository settingsRepo;
   final ValueNotifier<int> dataVersion;
   final VoidCallback onDataChanged;
 
@@ -34,6 +39,7 @@ class _AvatarVm {
     required this.bestStreak,
     required this.equipPctCapped,
     required this.equipped,
+    required this.settings,
   });
 
   final int level;
@@ -44,6 +50,7 @@ class _AvatarVm {
   final int bestStreak;
   final double equipPctCapped;
   final Map<String, String> equipped;
+  final UserSetting settings;
 }
 
 class _AvatarPageState extends State<AvatarPage> {
@@ -77,6 +84,7 @@ class _AvatarPageState extends State<AvatarPage> {
       if (stats.longest > bestStreak) bestStreak = stats.longest;
     }
     final equipped = await widget.avatarRepo.getEquipped();
+    final settings = await widget.settingsRepo.getSettings();
     final equipPct = _equipBonusPct(equipped);
     final equipPctCapped = equipPct > 0.15 ? 0.15 : equipPct;
     return _AvatarVm(
@@ -88,6 +96,7 @@ class _AvatarPageState extends State<AvatarPage> {
       bestStreak: bestStreak,
       equipPctCapped: equipPctCapped,
       equipped: equipped,
+      settings: settings,
     );
   }
 
@@ -154,14 +163,11 @@ class _AvatarPageState extends State<AvatarPage> {
                     children: [
                       Row(
                         children: [
-                          CircleAvatar(
-                            radius: 38,
-                            backgroundColor: scheme.surface,
-                            child: Icon(
-                              Icons.person_rounded,
-                              size: 46,
-                              color: scheme.onSurface,
-                            ),
+                          ProfileAvatar(
+                            settings: vm.settings,
+                            equipped: vm.equipped,
+                            size: 76,
+                            borderWidth: 3,
                           ),
                           const SizedBox(width: 12),
                           Expanded(

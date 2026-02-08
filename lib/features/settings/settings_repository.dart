@@ -124,4 +124,26 @@ class SettingsRepository {
           ),
         );
   }
+
+  Future<void> setProfileAvatarMode(String mode) async {
+    await db
+        .into(db.userSettings)
+        .insertOnConflictUpdate(
+          UserSettingsCompanion(
+            id: const Value(1),
+            profileAvatarMode: Value(mode),
+          ),
+        );
+  }
+
+  Future<void> setProfileAvatarPath(String path) async {
+    await db
+        .into(db.userSettings)
+        .insertOnConflictUpdate(
+          UserSettingsCompanion(
+            id: const Value(1),
+            profileAvatarPath: Value(path),
+          ),
+        );
+  }
 }

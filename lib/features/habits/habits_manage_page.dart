@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../db/app_db.dart';
 import '../../shared/habit_utils.dart';
 import 'habit_repository.dart';
+import 'habit_editor_page.dart';
 import 'schedule_picker.dart';
 
 class HabitsManagePage extends StatefulWidget {
@@ -23,12 +24,6 @@ class _HabitsManageVm {
   const _HabitsManageVm({required this.active, required this.archived});
   final List<Habit> active;
   final List<Habit> archived;
-}
-
-class _HabitEditorResult {
-  const _HabitEditorResult({required this.name, required this.days});
-  final String name;
-  final Set<int> days;
 }
 
 class _HabitsManagePageState extends State<HabitsManagePage> {
@@ -61,93 +56,33 @@ class _HabitsManagePageState extends State<HabitsManagePage> {
     });
   }
 
-  Future<_HabitEditorResult?> _showHabitEditor({Habit? habit}) {
-    final controller = TextEditingController(text: habit?.name ?? '');
-    final selectedDays = habit == null
-        ? <int>{}
-        : ScheduleMask.daysFromMask(habit.scheduleMask);
-    final allowEmpty = habit != null;
-
-    return showDialog<_HabitEditorResult>(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setState) {
-          final canSave =
-              controller.text.trim().isNotEmpty && (allowEmpty || selectedDays.isNotEmpty);
-          return AlertDialog(
-            title: Text(habit == null ? 'Add habit' : 'Edit habit'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: controller,
-                  decoration: const InputDecoration(hintText: 'Habit name'),
-                  autofocus: habit == null,
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 16),
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Schedule',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SchedulePicker(
-                  activeDays: selectedDays,
-                  onChanged: (days) => setState(() {
-                    selectedDays
-                      ..clear()
-                      ..addAll(days);
-                  }),
-                ),
-                if (selectedDays.isEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    allowEmpty ? 'No scheduled days' : 'Pick at least one day',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: canSave
-                    ? () {
-                        Navigator.pop(
-                          context,
-                          _HabitEditorResult(
-                            name: controller.text.trim(),
-                            days: Set<int>.from(selectedDays),
-                          ),
-                        );
-                      }
-                    : null,
-                child: const Text('Save'),
-              ),
-            ],
-          );
-        },
+  Future<HabitEditorResult?> _showHabitEditor({
+    Habit? habit,
+    String? draftId,
+  }) {
+    return Navigator.of(context).push<HabitEditorResult>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => HabitEditorPage(habit: habit, draftId: draftId),
       ),
     );
   }
 
   Future<void> _createHabit() async {
-    final result = await _showHabitEditor();
+    final id = 'h-${DateTime.now().millisecondsSinceEpoch}';
+    final result = await _showHabitEditor(draftId: id);
     if (result == null) return;
+    if (result.action != HabitEditorAction.save) return;
     if (result.name.isEmpty || result.days.isEmpty) return;
 
-    final id = 'h-${DateTime.now().millisecondsSinceEpoch}';
     final scheduleMask = ScheduleMask.maskFromDays(result.days);
     await widget.repo.createHabit(
       id: id,
       name: result.name,
       scheduleMask: scheduleMask,
+      timeOfDay: result.timeOfDay,
+      iconId: result.iconId,
+      iconPath: result.iconPath,
     );
     _refresh();
     widget.onDataChanged();
@@ -156,6 +91,11 @@ class _HabitsManagePageState extends State<HabitsManagePage> {
   Future<void> _editHabit(Habit habit) async {
     final result = await _showHabitEditor(habit: habit);
     if (result == null) return;
+    if (result.action == HabitEditorAction.archive) {
+      await _archiveHabit(habit);
+      return;
+    }
+    if (result.action != HabitEditorAction.save) return;
 
     if (result.name.trim() != habit.name) {
       await widget.repo.renameHabit(habit.id, result.name.trim());
@@ -163,6 +103,16 @@ class _HabitsManagePageState extends State<HabitsManagePage> {
     final nextMask = ScheduleMask.maskFromDays(result.days);
     if (nextMask != habit.scheduleMask) {
       await widget.repo.updateScheduleMask(habit.id, nextMask);
+    }
+    if (result.timeOfDay != habit.timeOfDay) {
+      await widget.repo.updateTimeOfDay(habit.id, result.timeOfDay);
+    }
+    if (result.iconId != habit.iconId || result.iconPath != habit.iconPath) {
+      if (result.iconId == 'custom') {
+        await widget.repo.updateHabitCustomIcon(habit.id, result.iconPath);
+      } else {
+        await widget.repo.updateHabitIcon(habit.id, result.iconId);
+      }
     }
     _refresh();
     widget.onDataChanged();
@@ -184,8 +134,8 @@ class _HabitsManagePageState extends State<HabitsManagePage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete habit?'),
-        content: const Text('This removes the habit and its history.'),
+        title: const Text('Delete quest?'),
+        content: const Text('This removes the quest and its history.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -209,9 +159,9 @@ class _HabitsManagePageState extends State<HabitsManagePage> {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(title: const Text('Habits')),
+      appBar: AppBar(title: const Text('Quests')),
       floatingActionButton: FloatingActionButton(
-        heroTag: 'fab-habits',
+        heroTag: 'fab-quests',
         onPressed: _createHabit,
         backgroundColor: scheme.primary,
         foregroundColor: scheme.onPrimary,
@@ -243,7 +193,7 @@ class _HabitsManagePageState extends State<HabitsManagePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'No active habits yet',
+                          'No active quests yet',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
@@ -251,7 +201,7 @@ class _HabitsManagePageState extends State<HabitsManagePage> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Tap + to add your first habit.',
+                          'Tap + to add your first quest.',
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
@@ -269,7 +219,7 @@ class _HabitsManagePageState extends State<HabitsManagePage> {
                               textStyle:
                                   const TextStyle(fontWeight: FontWeight.w800),
                             ),
-                            child: const Text('Add Habit'),
+                            child: const Text('Add Quest'),
                           ),
                         ),
                       ],
@@ -313,7 +263,7 @@ class _HabitsManagePageState extends State<HabitsManagePage> {
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text(
-                      'No archived habits.',
+                      'No archived quests.',
                       style: Theme.of(context)
                           .textTheme
                           .bodySmall

@@ -1,0 +1,15 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Flutter: Run iPhone Air",
+        "type": "shell",
+        "command": "xcrun simctl boot \"iPhone Air\" || true && open -a Simulator && flutter run -d \"iPhone Air\"",
+        "problemMatcher": [],
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        }
+      }
+    ]
+  }

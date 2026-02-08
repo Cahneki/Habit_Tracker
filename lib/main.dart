@@ -137,6 +137,8 @@ class _HomeScaffoldState extends State<HomeScaffold> {
       TodayPage(
         repo: widget.repo,
         audio: widget.audio,
+        avatarRepo: widget.avatarRepo,
+        settingsRepo: widget.settingsRepo,
         dataVersion: _dataVersion,
         onDataChanged: _notifyDataChanged,
         onOpenHabits: () => _setIndex(1),
@@ -157,12 +159,14 @@ class _HomeScaffoldState extends State<HomeScaffold> {
         repo: widget.repo,
         avatarRepo: widget.avatarRepo,
         audio: widget.audio,
+        settingsRepo: widget.settingsRepo,
         dataVersion: _dataVersion,
         onDataChanged: _notifyDataChanged,
       ),
       SettingsPage(
         settingsRepo: widget.settingsRepo,
         audio: widget.audio,
+        avatarRepo: widget.avatarRepo,
         dataVersion: _dataVersion,
         onDataChanged: () {
           _notifyDataChanged();
@@ -185,7 +189,7 @@ class _HomeScaffoldState extends State<HomeScaffold> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.menu_book_rounded),
-            label: 'Habits',
+            label: 'Quests',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.sports_martial_arts_rounded),

@@ -119,7 +119,7 @@ class _BattlesPageState extends State<BattlesPage> {
             const SizedBox(height: 8),
             if (!hasSchedule) ...[
               Text(
-                'No scheduled habits in this window.',
+                'No scheduled quests in this window.',
                 style: TextStyle(color: scheme.onSurfaceVariant),
               ),
             ] else ...[

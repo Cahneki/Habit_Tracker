@@ -21,7 +21,7 @@ class AppDb extends _$AppDb {
   AppDb.test(super.executor);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -94,6 +94,22 @@ class AppDb extends _$AppDb {
           }
           if (from < 11) {
             await migrator.addColumn(habits, habits.iconPath);
+          }
+          if (from < 12) {
+            await migrator.addColumn(
+              habits,
+              habits.timeOfDay as GeneratedColumn,
+            );
+          }
+          if (from < 13) {
+            await migrator.addColumn(
+              userSettings,
+              userSettings.profileAvatarMode as GeneratedColumn,
+            );
+            await migrator.addColumn(
+              userSettings,
+              userSettings.profileAvatarPath as GeneratedColumn,
+            );
           }
         },
       );

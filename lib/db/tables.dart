@@ -7,6 +7,8 @@ class Habits extends Table {
   IntColumn get createdAt => integer()(); // epoch ms
   IntColumn get archivedAt => integer().nullable()(); // epoch ms
   IntColumn get scheduleMask => integer().nullable()(); // bitmask: 0=Mon .. 6=Sun
+  TextColumn get timeOfDay =>
+      text().withDefault(const Constant('morning'))();
   TextColumn get iconId => text().withDefault(const Constant('magic'))();
   TextColumn get iconPath => text().withDefault(const Constant(''))();
 
@@ -46,6 +48,10 @@ class UserSettings extends Table {
   TextColumn get soundEquipPath =>
       text().withDefault(const Constant(''))();
   TextColumn get themeId => text().withDefault(const Constant('forest'))();
+  TextColumn get profileAvatarMode =>
+      text().withDefault(const Constant('character'))();
+  TextColumn get profileAvatarPath =>
+      text().withDefault(const Constant(''))();
 
   @override
   Set<Column> get primaryKey => {id};
