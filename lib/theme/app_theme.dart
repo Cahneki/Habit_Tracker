@@ -6,12 +6,60 @@ class AppTheme {
     ThemeOption(id: 'forest', label: 'Forest'),
     ThemeOption(id: 'midnight', label: 'Midnight Ink'),
     ThemeOption(id: 'ember', label: 'Ember Night'),
+    ThemeOption(id: 'light', label: 'Light'),
+    ThemeOption(id: 'dark', label: 'Dark'),
   ];
 
   static ThemeData themeForId(String id) {
-    if (id == 'midnight') return midnightTheme();
+    if (id == 'light') return standardLightTheme();
+    if (id == 'dark') return standardDarkTheme();
+    if (id == 'midnight') return darkTheme();
     if (id == 'ember') return emberTheme();
     return lightTheme();
+  }
+
+  static ThemeData standardLightTheme() {
+    final scheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF2563EB),
+      brightness: Brightness.light,
+    );
+    return _buildTheme(
+      scheme,
+      const GameTokens(
+        xpBadgeBg: Color(0xFFEAF2FF),
+        xpBadgeText: Color(0xFF1D4ED8),
+        urgentDot: Color(0xFFE35D2F),
+        urgentText: Color(0xFF8A3016),
+        habitWater: Color(0xFF2B8CFF),
+        habitRead: Color(0xFF7C4D24),
+        habitSleep: Color(0xFF6C4BB5),
+        habitRun: Color(0xFF0E9F6E),
+        habitLift: Color(0xFF8B5E34),
+        habitDefault: Color(0xFF374151),
+      ),
+    );
+  }
+
+  static ThemeData standardDarkTheme() {
+    final scheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF60A5FA),
+      brightness: Brightness.dark,
+    );
+    return _buildTheme(
+      scheme,
+      const GameTokens(
+        xpBadgeBg: Color(0xFF1E293B),
+        xpBadgeText: Color(0xFF93C5FD),
+        urgentDot: Color(0xFFFF9F4A),
+        urgentText: Color(0xFFFFC38A),
+        habitWater: Color(0xFF6FB6FF),
+        habitRead: Color(0xFFFFB870),
+        habitSleep: Color(0xFFB7A3FF),
+        habitRun: Color(0xFF6BE7B4),
+        habitLift: Color(0xFFDBA46A),
+        habitDefault: Color(0xFFE5E7EB),
+      ),
+    );
   }
 
   static ThemeData lightTheme() {
@@ -63,7 +111,7 @@ class AppTheme {
     );
   }
 
-  static ThemeData midnightTheme() {
+  static ThemeData darkTheme() {
     final scheme = const ColorScheme(
       brightness: Brightness.dark,
       primary: Color(0xFF34E3C3),
@@ -168,15 +216,14 @@ class AppTheme {
       scaffoldBackgroundColor: scheme.surface,
     );
 
-    final textTheme = GoogleFonts.plusJakartaSansTextTheme(base.textTheme).apply(
-      bodyColor: scheme.onSurface,
-      displayColor: scheme.onSurface,
-    );
+    final textTheme = GoogleFonts.plusJakartaSansTextTheme(
+      base.textTheme,
+    ).apply(bodyColor: scheme.onSurface, displayColor: scheme.onSurface);
 
     return base.copyWith(
       textTheme: textTheme,
       appBarTheme: AppBarTheme(
-        backgroundColor: scheme.surface,
+        backgroundColor: scheme.surface.withValues(alpha: 0.88),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         iconTheme: IconThemeData(color: scheme.onSurface),
@@ -186,23 +233,28 @@ class AppTheme {
         ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: scheme.surface,
+        backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.92),
         surfaceTintColor: Colors.transparent,
+        elevation: 10,
+        shadowColor: scheme.shadow.withValues(alpha: 0.45),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(22),
+          side: BorderSide(color: scheme.outline.withValues(alpha: 0.4)),
         ),
       ),
       cardTheme: CardThemeData(
-        color: scheme.surfaceContainerHighest,
-        elevation: 0,
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.9),
+        shadowColor: scheme.shadow.withValues(alpha: 0.35),
+        surfaceTintColor: Colors.transparent,
+        elevation: 4,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: scheme.outline),
+          borderRadius: BorderRadius.circular(22),
+          side: BorderSide(color: scheme.outline.withValues(alpha: 0.45)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: scheme.surface,
+        fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: scheme.outline),
@@ -240,13 +292,19 @@ class AppTheme {
         ),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: scheme.surface,
+        backgroundColor: scheme.surface.withValues(alpha: 0.92),
         selectedItemColor: scheme.primary,
         unselectedItemColor: scheme.onSurfaceVariant,
+        elevation: 12,
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: scheme.surface,
+        backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.92),
         surfaceTintColor: Colors.transparent,
+        elevation: 12,
+        shadowColor: scheme.shadow.withValues(alpha: 0.5),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
       ),
       listTileTheme: ListTileThemeData(
         iconColor: scheme.onSurface,

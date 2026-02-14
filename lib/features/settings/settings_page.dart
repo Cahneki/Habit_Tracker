@@ -32,10 +32,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsVm {
-  const _SettingsVm({
-    required this.settings,
-    required this.equipped,
-  });
+  const _SettingsVm({required this.settings, required this.equipped});
 
   final UserSetting settings;
   final Map<String, String> equipped;
@@ -234,10 +231,7 @@ class _SettingsPageState extends State<SettingsPage> {
             color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
           );
           return Column(
-            children: [
-              item,
-              if (index != items.length - 1) divider,
-            ],
+            children: [item, if (index != items.length - 1) divider],
           );
         }),
       ),
@@ -432,9 +426,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Future<void> _showSoundSettingsSheet({
-    required UserSetting settings,
-  }) async {
+  Future<void> _showSoundSettingsSheet({required UserSetting settings}) async {
     if (!mounted) return;
     final soundOptions = await widget.audio.getAvailableSounds();
     if (!mounted) return;
@@ -488,8 +480,9 @@ class _SettingsPageState extends State<SettingsPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  onPressed:
-                      canSelectSounds ? () => _previewSound(event) : null,
+                  onPressed: canSelectSounds
+                      ? () => _previewSound(event)
+                      : null,
                   icon: const Icon(Icons.play_arrow_rounded),
                   tooltip: 'Preview',
                 ),
@@ -585,10 +578,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: const Text('Settings'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Settings'), centerTitle: true),
       body: FutureBuilder<_SettingsVm>(
         future: _future,
         builder: (context, snap) {
@@ -711,10 +701,7 @@ class _SettingsPageState extends State<SettingsPage> {
               context: context,
               icon: Icons.library_music_rounded,
               title: 'Sound Pack',
-              trailing: _valueTrailing(
-                context,
-                labelForPack(soundPackId),
-              ),
+              trailing: _valueTrailing(context, labelForPack(soundPackId)),
               onTap: () async {
                 await Navigator.of(context).push(
                   MaterialPageRoute(

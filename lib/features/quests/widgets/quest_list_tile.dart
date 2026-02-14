@@ -15,6 +15,7 @@ class QuestListTile extends StatelessWidget {
     required this.onTap,
     required this.onLongPress,
     required this.onOverflow,
+    this.trailing,
   });
 
   final QuestUiItem item;
@@ -23,6 +24,7 @@ class QuestListTile extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final VoidCallback onOverflow;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -73,10 +75,15 @@ class QuestListTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              _IconThumb(
-                icon: icon,
-                iconColor: iconColor,
-                imagePath: item.habit.iconPath,
+              SizedBox(
+                height: 72,
+                child: Center(
+                  child: _IconThumb(
+                    icon: icon,
+                    iconColor: iconColor,
+                    imagePath: item.habit.iconPath,
+                  ),
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -113,43 +120,44 @@ class QuestListTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: tokens.xpBadgeBg,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      '+${item.xpReward} XP',
-                      style: TextStyle(
-                        color: tokens.xpBadgeText,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 11,
+              trailing ??
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: tokens.xpBadgeBg,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '+${item.xpReward} XP',
+                          style: TextStyle(
+                            color: tokens.xpBadgeText,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 6),
+                      if (selectionMode)
+                        Icon(
+                          selected
+                              ? Icons.check_circle_rounded
+                              : Icons.circle_outlined,
+                          color: selected ? scheme.primary : scheme.outline,
+                        )
+                      else
+                        IconButton(
+                          tooltip: 'More',
+                          onPressed: onOverflow,
+                          icon: const Icon(Icons.more_horiz_rounded),
+                        ),
+                    ],
                   ),
-                  const SizedBox(height: 6),
-                  if (selectionMode)
-                    Icon(
-                      selected
-                          ? Icons.check_circle_rounded
-                          : Icons.circle_outlined,
-                      color: selected ? scheme.primary : scheme.outline,
-                    )
-                  else
-                    IconButton(
-                      tooltip: 'More',
-                      onPressed: onOverflow,
-                      icon: const Icon(Icons.more_horiz_rounded),
-                    ),
-                ],
-              ),
             ],
           ),
         ),
@@ -175,15 +183,15 @@ class _IconThumb extends StatelessWidget {
     final path = imagePath.trim();
 
     return Container(
-      width: 42,
-      height: 42,
+      width: 60,
+      height: 60,
       decoration: BoxDecoration(
         color: scheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(17),
         border: Border.all(color: scheme.outline.withValues(alpha: 0.6)),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(15),
         child: path.isNotEmpty
             ? Image.file(
                 File(path),

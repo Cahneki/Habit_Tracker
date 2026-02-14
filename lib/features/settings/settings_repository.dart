@@ -6,24 +6,29 @@ class SettingsRepository {
   final AppDb db;
 
   Future<UserSetting> getSettings() async {
-    final existing = await (db.select(db.userSettings)
-          ..where((s) => s.id.equals(1)))
-        .getSingleOrNull();
+    final existing = await (db.select(
+      db.userSettings,
+    )..where((s) => s.id.equals(1))).getSingleOrNull();
     if (existing != null) {
-      if (existing.soundPackId == 'system' || existing.soundPackId == 'forest') {
+      if (existing.soundPackId == 'system' ||
+          existing.soundPackId == 'forest') {
         await setSoundPack('interface');
-        return (db.select(db.userSettings)..where((s) => s.id.equals(1)))
-            .getSingle();
       }
-      return existing;
+      return (db.select(
+        db.userSettings,
+      )..where((s) => s.id.equals(1))).getSingle();
     }
 
-    await db.into(db.userSettings).insert(
+    await db
+        .into(db.userSettings)
+        .insert(
           const UserSettingsCompanion(id: Value(1)),
           mode: InsertMode.insertOrIgnore,
         );
 
-    return (db.select(db.userSettings)..where((s) => s.id.equals(1))).getSingle();
+    return (db.select(
+      db.userSettings,
+    )..where((s) => s.id.equals(1))).getSingle();
   }
 
   Future<void> setSoundEnabled(bool enabled) async {
@@ -41,10 +46,7 @@ class SettingsRepository {
     await db
         .into(db.userSettings)
         .insertOnConflictUpdate(
-          UserSettingsCompanion(
-            id: const Value(1),
-            soundPackId: Value(packId),
-          ),
+          UserSettingsCompanion(id: const Value(1), soundPackId: Value(packId)),
         );
   }
 
@@ -118,10 +120,7 @@ class SettingsRepository {
     await db
         .into(db.userSettings)
         .insertOnConflictUpdate(
-          UserSettingsCompanion(
-            id: const Value(1),
-            themeId: Value(themeId),
-          ),
+          UserSettingsCompanion(id: const Value(1), themeId: Value(themeId)),
         );
   }
 

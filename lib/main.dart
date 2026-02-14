@@ -10,6 +10,7 @@ import 'features/settings/settings_page.dart';
 import 'features/settings/settings_repository.dart';
 import 'features/today/today_page.dart';
 import 'services/audio_service.dart';
+import 'shared/textured_app_shell.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -71,6 +72,10 @@ class _MyAppState extends State<MyApp> {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: AppTheme.themeForId(themeId),
+          builder: (context, child) {
+            if (child == null) return const SizedBox.shrink();
+            return TexturedAppShell(child: child);
+          },
           home: HomeScaffold(
             repo: repo,
             settingsRepo: settingsRepo,
@@ -142,6 +147,7 @@ class _HomeScaffoldState extends State<HomeScaffold> {
         dataVersion: _dataVersion,
         onDataChanged: _notifyDataChanged,
         onOpenHabits: () => _setIndex(1),
+        onOpenBattles: () => _setIndex(2),
       ),
       HabitsManagePage(
         repo: widget.repo,

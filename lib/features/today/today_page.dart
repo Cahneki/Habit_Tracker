@@ -8,10 +8,11 @@ import '../../shared/xp_utils.dart';
 import '../../theme/app_theme.dart';
 import '../avatar/avatar_repository.dart';
 import '../battles/battle_service.dart';
-import '../habits/habit_detail_page.dart';
 import '../habits/habit_editor_page.dart';
 import '../habits/habit_repository.dart';
 import '../habits/schedule_picker.dart';
+import '../quests/quests_view_model.dart';
+import '../quests/widgets/quest_list_tile.dart';
 import '../settings/settings_repository.dart';
 
 enum _MissionSort { urgency, xpReward, streakRisk, manual }
@@ -26,6 +27,7 @@ class TodayPage extends StatefulWidget {
     required this.dataVersion,
     required this.onDataChanged,
     required this.onOpenHabits,
+    required this.onOpenBattles,
   });
 
   final HabitRepository repo;
@@ -35,6 +37,7 @@ class TodayPage extends StatefulWidget {
   final ValueNotifier<int> dataVersion;
   final VoidCallback onDataChanged;
   final VoidCallback onOpenHabits;
+  final VoidCallback onOpenBattles;
 
   @override
   State<TodayPage> createState() => _TodayPageState();
@@ -116,7 +119,6 @@ class _TodayPageState extends State<TodayPage> {
   late final VoidCallback _dataListener;
   _MissionSort _sort = _MissionSort.urgency;
   bool _completedExpanded = true;
-  final Set<String> _collapsingIds = <String>{};
 
   @override
   void initState() {
@@ -372,12 +374,7 @@ class _TodayPageState extends State<TodayPage> {
 
   Future<void> _addHabit() async {
     final id = 'h-${DateTime.now().millisecondsSinceEpoch}';
-    final result = await Navigator.of(context).push<HabitEditorResult>(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => HabitEditorPage(draftId: id),
-      ),
-    );
+    final result = await _showHabitEditor(draftId: id);
 
     if (result == null) return;
     if (result.action != HabitEditorAction.save) return;
@@ -396,44 +393,215 @@ class _TodayPageState extends State<TodayPage> {
     widget.onDataChanged();
   }
 
+  Future<HabitEditorResult?> _showHabitEditor({Habit? habit, String? draftId}) {
+    return Navigator.of(context).push<HabitEditorResult>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => HabitEditorPage(habit: habit, draftId: draftId),
+      ),
+    );
+  }
+
   Future<void> _toggleMission(_HabitRowVm row) async {
     final wasCompleted = row.stats.completedToday;
-
-    if (!wasCompleted) {
-      setState(() {
-        _collapsingIds.add(row.habit.id);
-      });
-      await Future<void>.delayed(const Duration(milliseconds: 180));
-    }
 
     await widget.repo.toggleCompletionForDay(row.habit.id, DateTime.now());
     await _refresh();
     widget.onDataChanged();
 
     if (!wasCompleted) {
-      setState(() {
-        _collapsingIds.remove(row.habit.id);
-      });
       await widget.audio.play(SoundEvent.complete);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Completed.'),
-          action: SnackBarAction(
-            label: 'Undo',
-            onPressed: () async {
-              await widget.repo.toggleCompletionForDay(
-                row.habit.id,
-                DateTime.now(),
-              );
-              await _refresh();
-              widget.onDataChanged();
-            },
-          ),
-        ),
-      );
     }
+  }
+
+  QuestUiItem _questItemForRow(_HabitRowVm row) {
+    return QuestUiItem(
+      habit: row.habit,
+      streak: row.stats,
+      isScheduledToday: true,
+      isCompletedToday: row.stats.completedToday,
+      isAtRisk: isUrgent(row.habit, row.stats),
+      isBacklog: row.habit.scheduleMask == 0,
+      timeOfDay: row.habit.timeOfDay,
+      weekCompleted: row.weekCompleted,
+      weekScheduled: row.weekScheduled,
+      xpReward: xpForHabit(row.habit, row.stats),
+      nextDueDate: null,
+      scheduleText: QuestsViewModel.humanScheduleText(
+        row.habit.scheduleMask,
+        _timeLabel(row.habit.timeOfDay),
+      ),
+      manualOrder: row.manualOrder,
+      isArchived: false,
+      createdAt: row.habit.createdAt,
+    );
+  }
+
+  Future<void> _editHabit(Habit habit) async {
+    final result = await _showHabitEditor(habit: habit);
+    if (result == null) return;
+    if (result.action == HabitEditorAction.archive) {
+      await _archiveHabit(habit);
+      return;
+    }
+    if (result.action != HabitEditorAction.save) return;
+
+    if (result.name.trim() != habit.name) {
+      await widget.repo.renameHabit(habit.id, result.name.trim());
+    }
+    final nextMask = ScheduleMask.maskFromDays(result.days);
+    if (nextMask != habit.scheduleMask) {
+      await widget.repo.updateScheduleMask(habit.id, nextMask);
+    }
+    if (result.timeOfDay != habit.timeOfDay) {
+      await widget.repo.updateTimeOfDay(habit.id, result.timeOfDay);
+    }
+    if (result.iconId != habit.iconId || result.iconPath != habit.iconPath) {
+      if (result.iconId == 'custom') {
+        await widget.repo.updateHabitCustomIcon(habit.id, result.iconPath);
+      } else {
+        await widget.repo.updateHabitIcon(habit.id, result.iconId);
+      }
+    }
+
+    await _refresh();
+    widget.onDataChanged();
+  }
+
+  Future<void> _archiveHabit(Habit habit) async {
+    await widget.repo.archiveHabit(habit.id);
+    await _refresh();
+    widget.onDataChanged();
+  }
+
+  Future<void> _deleteHabit(Habit habit) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete quest?'),
+        content: const Text('This removes the quest and its history.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    await widget.repo.deleteHabit(habit.id);
+    await _refresh();
+    widget.onDataChanged();
+  }
+
+  Future<void> _showMissionActions(_HabitRowVm row) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit_rounded),
+                title: const Text('Edit'),
+                onTap: () => Navigator.of(context).pop('edit'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.archive_rounded),
+                title: const Text('Archive'),
+                onTap: () => Navigator.of(context).pop('archive'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_rounded),
+                title: const Text('Delete'),
+                onTap: () => Navigator.of(context).pop('delete'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'edit':
+        await _editHabit(row.habit);
+        break;
+      case 'archive':
+        await _archiveHabit(row.habit);
+        break;
+      case 'delete':
+        await _deleteHabit(row.habit);
+        break;
+    }
+  }
+
+  List<Widget> _buildTodayMissionRows(List<_HabitRowVm> rows) {
+    final scheme = Theme.of(context).colorScheme;
+    final tokens = Theme.of(context).extension<GameTokens>()!;
+
+    return rows
+        .map(
+          (row) => Container(
+            key: ValueKey('today-quest-${row.habit.id}-${row.manualOrder}'),
+            child: QuestListTile(
+              item: _questItemForRow(row),
+              selected: false,
+              selectionMode: false,
+              onTap: () {},
+              onLongPress: () => _showMissionActions(row),
+              onOverflow: () => _showMissionActions(row),
+              trailing: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: tokens.xpBadgeBg,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '+${xpForHabit(row.habit, row.stats)} XP',
+                      style: TextStyle(
+                        color: tokens.xpBadgeText,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    height: 34,
+                    child: ElevatedButton(
+                      onPressed: () => _toggleMission(row),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: scheme.primary,
+                        foregroundColor: scheme.onPrimary,
+                        shape: const StadiumBorder(),
+                        textStyle: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                      child: const Text('Complete'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        )
+        .toList();
   }
 
   List<_HabitRowVm> _sortRows(List<_HabitRowVm> rows) {
@@ -508,10 +676,8 @@ class _TodayPageState extends State<TodayPage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final tokens = Theme.of(context).extension<GameTokens>()!;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: FloatingActionButton(
         heroTag: 'fab-today',
@@ -520,732 +686,270 @@ class _TodayPageState extends State<TodayPage> {
         foregroundColor: scheme.onPrimary,
         child: const Icon(Icons.add),
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              scheme.surface,
-              scheme.surfaceContainerHigh.withValues(alpha: 0.7),
-              scheme.surface,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.maxWidth;
-              final height = constraints.maxHeight;
-              return Center(
-                child: SizedBox(
-                  width: width < 440 ? width : 440,
-                  height: height,
-                  child: FutureBuilder<_HabitsDashboardVm>(
-                    future: _dashboardFuture,
-                    builder: (context, snap) {
-                      if (!snap.hasData) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final height = constraints.maxHeight;
+            return Center(
+              child: SizedBox(
+                width: width < 440 ? width : 440,
+                height: height,
+                child: FutureBuilder<_HabitsDashboardVm>(
+                  future: _dashboardFuture,
+                  builder: (context, snap) {
+                    if (!snap.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-                      final vm = snap.data!;
-                      final completedRows = vm.rows
-                          .where((r) => r.stats.completedToday)
-                          .toList();
-                      final activeRows = vm.rows
-                          .where((r) => !r.stats.completedToday)
-                          .toList();
-                      final sortedActive = _sortRows(activeRows);
+                    final vm = snap.data!;
+                    final completedRows = vm.rows
+                        .where((r) => r.stats.completedToday)
+                        .toList();
+                    final activeRows = vm.rows
+                        .where((r) => !r.stats.completedToday)
+                        .toList();
+                    final sortedActive = _sortRows(activeRows);
+                    final bossHpProgress = (1 - vm.weeklyProgress).clamp(
+                      0.0,
+                      1.0,
+                    );
 
-                      return RefreshIndicator(
-                        onRefresh: _refresh,
-                        color: scheme.primary,
-                        backgroundColor: scheme.surface,
-                        child: SingleChildScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 140),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _TopBar(onRefresh: _refresh),
-                              const SizedBox(height: 14),
-                              _GlassCard(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        _AvatarLevelBadge(
-                                          settings: vm.settings,
-                                          equipped: vm.equipped,
-                                          level: vm.level,
-                                        ),
-                                        const SizedBox(width: 14),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                _displayName(),
-                                                style: const TextStyle(
-                                                  fontSize: 20,
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(999),
-                                                child: LinearProgressIndicator(
-                                                  value: vm.xpGoal == 0
-                                                      ? 0
-                                                      : (vm.xp / vm.xpGoal)
-                                                            .clamp(0.0, 1.0),
-                                                  minHeight: 12,
-                                                  backgroundColor:
-                                                      scheme.surface,
-                                                  color: scheme.primary,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                '${vm.xp} / ${vm.xpGoal} XP '
-                                                '(${((vm.xp / vm.xpGoal).clamp(0.0, 1.0) * 100).round()}%)',
-                                                style: TextStyle(
-                                                  color:
-                                                      scheme.onSurfaceVariant,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 14),
-                                    Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.fromLTRB(
-                                        14,
-                                        12,
-                                        14,
-                                        12,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: scheme.surfaceContainerHigh
-                                            .withValues(alpha: 0.8),
-                                        borderRadius: BorderRadius.circular(18),
-                                        border: Border.all(
-                                          color: scheme.outline.withValues(
-                                            alpha: 0.35,
-                                          ),
-                                        ),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  "Today's Progress",
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: const TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w800,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 12),
-                                          Wrap(
-                                            spacing: 18,
-                                            runSpacing: 8,
-                                            children: [
-                                              _MiniStatLine(
-                                                icon: Icons.task_alt_rounded,
-                                                label:
-                                                    'Quests: ${vm.questsDone} / ${vm.questsTotal}',
-                                              ),
-                                              _MiniStatLine(
-                                                icon: Icons.bolt_rounded,
-                                                label:
-                                                    'XP Today: +${vm.xpToday}',
-                                              ),
-                                              _MiniStatLine(
-                                                icon: Icons.flash_on_rounded,
-                                                label:
-                                                    'Boss Damage: +${vm.bossDamageToday}',
-                                              ),
-                                              _MiniStatLine(
-                                                icon: Icons
-                                                    .local_fire_department_rounded,
-                                                label:
-                                                    'Streak: ${vm.currentStreak} days',
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 10),
-                                          Divider(
-                                            height: 1,
-                                            color: scheme.outline.withValues(
-                                              alpha: 0.35,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Keep density above 70% to defeat Weekly Boss.',
-                                            style: TextStyle(
-                                              color: scheme.onSurfaceVariant,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              Row(
+                    return RefreshIndicator(
+                      onRefresh: _refresh,
+                      color: scheme.primary,
+                      backgroundColor: scheme.surface,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 140),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _TopBar(),
+                            const SizedBox(height: 14),
+                            _GlassCard(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(
-                                    child: Text(
-                                      "Today's Missions (${sortedActive.length})",
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
+                                  Row(
+                                    children: [
+                                      _AvatarLevelBadge(
+                                        settings: vm.settings,
+                                        equipped: vm.equipped,
+                                        level: vm.level,
                                       ),
-                                    ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              _displayName(),
+                                              style: const TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                              child: LinearProgressIndicator(
+                                                value: vm.xpGoal == 0
+                                                    ? 0
+                                                    : (vm.xp / vm.xpGoal).clamp(
+                                                        0.0,
+                                                        1.0,
+                                                      ),
+                                                minHeight: 12,
+                                                backgroundColor: scheme.surface,
+                                                color: scheme.primary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              '${vm.xp} / ${vm.xpGoal} XP',
+                                              style: TextStyle(
+                                                color: scheme.onSurfaceVariant,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  IconButton(
-                                    tooltip: 'Sort',
-                                    onPressed: _showSortSheet,
-                                    icon: const Icon(Icons.sort_rounded),
+                                  const SizedBox(height: 14),
+                                  _InlineStatsBar(
+                                    currentStreak: vm.currentStreak,
+                                    xpToday: vm.xpToday,
+                                    questsDone: vm.questsDone,
+                                    questsTotal: vm.questsTotal,
+                                  ),
+                                  const SizedBox(height: 14),
+                                  _WeeklyBossCard(
+                                    daysLeft: vm.weeklyDaysLeft,
+                                    hpProgress: bossHpProgress,
+                                    onViewBattle: widget.onOpenBattles,
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
-                              _GlassCard(
-                                padding: EdgeInsets.zero,
-                                child: Column(
-                                  children: [
+                            ),
+                            const SizedBox(height: 14),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    "Today's Quests (${sortedActive.length})",
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: 'Sort',
+                                  onPressed: _showSortSheet,
+                                  icon: const Icon(Icons.sort_rounded),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            _GlassCard(
+                              padding: EdgeInsets.zero,
+                              child: Column(
+                                children: [
+                                  if (sortedActive.isEmpty)
                                     Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Text(
+                                        'No active quests scheduled today.',
+                                        style: TextStyle(
+                                          color: scheme.onSurfaceVariant,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    ..._buildTodayMissionRows(sortedActive),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            _GlassCard(
+                              padding: EdgeInsets.zero,
+                              child: Column(
+                                children: [
+                                  InkWell(
+                                    onTap: () => setState(() {
+                                      _completedExpanded = !_completedExpanded;
+                                    }),
+                                    child: Padding(
                                       padding: const EdgeInsets.fromLTRB(
                                         14,
                                         12,
                                         14,
-                                        10,
+                                        12,
                                       ),
                                       child: Row(
                                         children: [
                                           const Icon(
-                                            Icons.military_tech_rounded,
-                                            size: 20,
+                                            Icons.chat_bubble_outline_rounded,
                                           ),
-                                          const SizedBox(width: 8),
+                                          const SizedBox(width: 10),
                                           Expanded(
                                             child: Text(
-                                              'Weekly Boss — ${vm.weeklyDaysLeft}d left',
+                                              'Completed Today (${completedRows.length})',
                                               style: const TextStyle(
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.w800,
                                               ),
                                             ),
                                           ),
-                                          TextButton(
-                                            onPressed: () {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    'Open Battles tab to view battle details.',
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                            child: const Text('View Battle →'),
+                                          Icon(
+                                            _completedExpanded
+                                                ? Icons.expand_less_rounded
+                                                : Icons.expand_more_rounded,
                                           ),
                                         ],
                                       ),
                                     ),
+                                  ),
+                                  if (_completedExpanded &&
+                                      completedRows.isNotEmpty)
                                     Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 14,
-                                        vertical: 2,
+                                      padding: const EdgeInsets.fromLTRB(
+                                        14,
+                                        0,
+                                        14,
+                                        12,
                                       ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(
-                                          999,
-                                        ),
-                                        child: LinearProgressIndicator(
-                                          value: vm.weeklyProgress,
-                                          minHeight: 7,
-                                          backgroundColor: scheme.surface,
-                                          color: scheme.primary,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Divider(
-                                      height: 1,
-                                      color: scheme.outline.withValues(
-                                        alpha: 0.25,
-                                      ),
-                                    ),
-                                    if (sortedActive.isEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.all(16),
-                                        child: Text(
-                                          'No active quests scheduled today.',
-                                          style: TextStyle(
-                                            color: scheme.onSurfaceVariant,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      )
-                                    else
-                                      ...sortedActive.asMap().entries.map((
-                                        entry,
-                                      ) {
-                                        final idx = entry.key;
-                                        final row = entry.value;
-                                        final xpReward = xpForHabit(
-                                          row.habit,
-                                          row.stats,
-                                        );
-                                        final urgent = isUrgent(
-                                          row.habit,
-                                          row.stats,
-                                        );
-                                        return AnimatedOpacity(
-                                          opacity:
-                                              _collapsingIds.contains(
-                                                row.habit.id,
-                                              )
-                                              ? 0
-                                              : 1,
-                                          duration: const Duration(
-                                            milliseconds: 180,
-                                          ),
-                                          child: AnimatedSize(
-                                            duration: const Duration(
-                                              milliseconds: 180,
-                                            ),
-                                            child:
-                                                _collapsingIds.contains(
-                                                  row.habit.id,
-                                                )
-                                                ? const SizedBox.shrink()
-                                                : InkWell(
-                                                    onTap: () async {
-                                                      await Navigator.push(
-                                                        context,
-                                                        MaterialPageRoute(
-                                                          builder: (_) =>
-                                                              HabitDetailPage(
-                                                                repo:
-                                                                    widget.repo,
-                                                                habit:
-                                                                    row.habit,
-                                                                onDataChanged:
-                                                                    widget
-                                                                        .onDataChanged,
-                                                              ),
-                                                        ),
-                                                      );
-                                                      await _refresh();
-                                                      widget.onDataChanged();
-                                                    },
-                                                    child: Container(
-                                                      padding:
-                                                          const EdgeInsets.fromLTRB(
-                                                            0,
-                                                            0,
-                                                            0,
-                                                            0,
-                                                          ),
-                                                      decoration: BoxDecoration(
-                                                        border: Border(
-                                                          bottom: BorderSide(
-                                                            color:
-                                                                idx ==
-                                                                    sortedActive
-                                                                            .length -
-                                                                        1
-                                                                ? Colors
-                                                                      .transparent
-                                                                : scheme.outline
-                                                                      .withValues(
-                                                                        alpha:
-                                                                            0.2,
-                                                                      ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      child: Padding(
-                                                        padding:
-                                                            const EdgeInsets.fromLTRB(
-                                                              14,
-                                                              12,
-                                                              14,
-                                                              12,
-                                                            ),
-                                                        child: Row(
-                                                          crossAxisAlignment:
-                                                              CrossAxisAlignment
-                                                                  .start,
-                                                          children: [
-                                                            Container(
-                                                              width: 4,
-                                                              height: 76,
-                                                              decoration: BoxDecoration(
-                                                                color: urgent
-                                                                    ? scheme
-                                                                          .error
-                                                                    : scheme
-                                                                          .primary,
-                                                                borderRadius:
-                                                                    BorderRadius.circular(
-                                                                      8,
-                                                                    ),
-                                                              ),
-                                                            ),
-                                                            const SizedBox(
-                                                              width: 10,
-                                                            ),
-                                                            Expanded(
-                                                              child: Column(
-                                                                crossAxisAlignment:
-                                                                    CrossAxisAlignment
-                                                                        .start,
-                                                                children: [
-                                                                  Row(
-                                                                    children: [
-                                                                      if (urgent)
-                                                                        Container(
-                                                                          padding: const EdgeInsets.symmetric(
-                                                                            horizontal:
-                                                                                10,
-                                                                            vertical:
-                                                                                4,
-                                                                          ),
-                                                                          decoration: BoxDecoration(
-                                                                            color:
-                                                                                scheme.errorContainer,
-                                                                            borderRadius: BorderRadius.circular(
-                                                                              999,
-                                                                            ),
-                                                                          ),
-                                                                          child: Text(
-                                                                            'URGENT',
-                                                                            style: TextStyle(
-                                                                              color: scheme.onErrorContainer,
-                                                                              fontWeight: FontWeight.w800,
-                                                                              fontSize: 11,
-                                                                            ),
-                                                                          ),
-                                                                        )
-                                                                      else
-                                                                        Container(
-                                                                          padding: const EdgeInsets.symmetric(
-                                                                            horizontal:
-                                                                                8,
-                                                                            vertical:
-                                                                                3,
-                                                                          ),
-                                                                          decoration: BoxDecoration(
-                                                                            color:
-                                                                                tokens.xpBadgeBg,
-                                                                            borderRadius: BorderRadius.circular(
-                                                                              8,
-                                                                            ),
-                                                                          ),
-                                                                          child: Text(
-                                                                            '+$xpReward',
-                                                                            style: TextStyle(
-                                                                              color: tokens.xpBadgeText,
-                                                                              fontWeight: FontWeight.w800,
-                                                                            ),
-                                                                          ),
-                                                                        ),
-                                                                      const SizedBox(
-                                                                        width:
-                                                                            10,
-                                                                      ),
-                                                                      Expanded(
-                                                                        child: Text(
-                                                                          row
-                                                                              .habit
-                                                                              .name,
-                                                                          style: const TextStyle(
-                                                                            fontSize:
-                                                                                18,
-                                                                            fontWeight:
-                                                                                FontWeight.w800,
-                                                                          ),
-                                                                        ),
-                                                                      ),
-                                                                    ],
-                                                                  ),
-                                                                  const SizedBox(
-                                                                    height: 8,
-                                                                  ),
-                                                                  Text(
-                                                                    'Scheduled: ${row.timeLabel} • '
-                                                                    'Weekly: ${row.weekCompleted}/${row.weekScheduled} completed',
-                                                                    style: TextStyle(
-                                                                      color: scheme
-                                                                          .onSurfaceVariant,
-                                                                      fontSize:
-                                                                          14,
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .w600,
-                                                                    ),
-                                                                  ),
-                                                                ],
-                                                              ),
-                                                            ),
-                                                            const SizedBox(
-                                                              width: 10,
-                                                            ),
-                                                            SizedBox(
-                                                              height: 42,
-                                                              child: ElevatedButton(
-                                                                onPressed: () =>
-                                                                    _toggleMission(
-                                                                      row,
-                                                                    ),
-                                                                style: ElevatedButton.styleFrom(
-                                                                  backgroundColor:
-                                                                      scheme
-                                                                          .primary,
-                                                                  foregroundColor:
-                                                                      scheme
-                                                                          .onPrimary,
-                                                                  shape:
-                                                                      const StadiumBorder(),
-                                                                  textStyle: const TextStyle(
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .w800,
-                                                                  ),
-                                                                ),
-                                                                child:
-                                                                    const Text(
-                                                                      'Complete',
-                                                                    ),
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                          ),
-                                        );
-                                      }),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              _GlassCard(
-                                padding: EdgeInsets.zero,
-                                child: Column(
-                                  children: [
-                                    InkWell(
-                                      onTap: () => setState(() {
-                                        _completedExpanded =
-                                            !_completedExpanded;
-                                      }),
-                                      child: Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                          14,
-                                          12,
-                                          14,
-                                          12,
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.chat_bubble_outline_rounded,
-                                            ),
-                                            const SizedBox(width: 10),
-                                            Expanded(
-                                              child: Text(
-                                                'Completed Today (${completedRows.length})',
-                                                style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                              ),
-                                            ),
-                                            Icon(
-                                              _completedExpanded
-                                                  ? Icons.expand_less_rounded
-                                                  : Icons.expand_more_rounded,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    if (_completedExpanded &&
-                                        completedRows.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                          14,
-                                          0,
-                                          14,
-                                          12,
-                                        ),
-                                        child: Column(
-                                          children: completedRows
-                                              .map(
-                                                (row) => Row(
-                                                  children: [
-                                                    Expanded(
-                                                      child: Text(
-                                                        row.habit.name,
-                                                        style: TextStyle(
-                                                          decoration:
-                                                              TextDecoration
-                                                                  .lineThrough,
-                                                          color: scheme
-                                                              .onSurfaceVariant,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    IconButton(
-                                                      tooltip: 'Undo',
-                                                      onPressed: () =>
-                                                          _toggleMission(row),
-                                                      icon: const Icon(
-                                                        Icons.undo_rounded,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              )
-                                              .toList(),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                children: [
-                                  const Expanded(
-                                    child: Text(
-                                      'On The Horizon',
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ),
-                                  TextButton(
-                                    onPressed: widget.onOpenHabits,
-                                    child: const Text('View All'),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              if (vm.upcomingRows.isEmpty)
-                                _GlassCard(
-                                  child: Text(
-                                    'No upcoming quests.',
-                                    style: TextStyle(
-                                      color: scheme.onSurfaceVariant,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                )
-                              else
-                                ...vm.upcomingRows
-                                    .take(3)
-                                    .map(
-                                      (row) => Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 10,
-                                        ),
-                                        child: _GlassCard(
-                                          child: Row(
-                                            children: [
-                                              Container(
-                                                width: 4,
-                                                height: 64,
-                                                decoration: BoxDecoration(
-                                                  color: scheme.primary,
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Container(
-                                                width: 56,
-                                                height: 56,
-                                                decoration: BoxDecoration(
-                                                  color: scheme.surface,
-                                                  borderRadius:
-                                                      BorderRadius.circular(18),
-                                                ),
-                                                child: Icon(
-                                                  Icons.auto_awesome_rounded,
-                                                  color: scheme.primary,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
+                                      child: Column(
+                                        children: completedRows
+                                            .map(
+                                              (row) => Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
                                                       row.habit.name,
-                                                      style: const TextStyle(
-                                                        fontSize: 18,
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 4),
-                                                    Text(
-                                                      row.subtitle,
                                                       style: TextStyle(
+                                                        decoration:
+                                                            TextDecoration
+                                                                .lineThrough,
                                                         color: scheme
                                                             .onSurfaceVariant,
                                                         fontWeight:
                                                             FontWeight.w600,
                                                       ),
                                                     ),
-                                                  ],
-                                                ),
+                                                  ),
+                                                  IconButton(
+                                                    tooltip: 'Undo',
+                                                    onPressed: () =>
+                                                        _toggleMission(row),
+                                                    icon: const Icon(
+                                                      Icons.undo_rounded,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                            ],
+                                            )
+                                            .toList(),
+                                      ),
+                                    ),
+                                  if (_completedExpanded &&
+                                      completedRows.isEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        14,
+                                        0,
+                                        14,
+                                        12,
+                                      ),
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          'Complete a quest to earn XP.',
+                                          style: TextStyle(
+                                            color: scheme.onSurfaceVariant,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ),
                                     ),
-                            ],
-                          ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -1315,30 +1019,22 @@ class _AvatarLevelBadge extends StatelessWidget {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onRefresh});
-
-  final VoidCallback onRefresh;
+  const _TopBar();
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Icon(Icons.more_horiz_rounded, color: scheme.onSurfaceVariant),
+        const SizedBox(width: 42, height: 42),
         const Spacer(),
-        Text(
-          'TODAY',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1,
-          ),
-        ),
+        const SizedBox(width: 42, height: 42),
         const Spacer(),
         SizedBox(
           width: 42,
           height: 42,
           child: OutlinedButton(
-            onPressed: onRefresh,
+            onPressed: () {},
             style: OutlinedButton.styleFrom(
               padding: EdgeInsets.zero,
               side: BorderSide(color: scheme.outline),
@@ -1346,7 +1042,7 @@ class _TopBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Icon(Icons.open_in_new_rounded, size: 20),
+            child: const Icon(Icons.notifications_rounded, size: 20),
           ),
         ),
       ],
@@ -1354,25 +1050,265 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-class _MiniStatLine extends StatelessWidget {
-  const _MiniStatLine({required this.icon, required this.label});
+class _WeeklyBossCard extends StatelessWidget {
+  const _WeeklyBossCard({
+    required this.daysLeft,
+    required this.hpProgress,
+    required this.onViewBattle,
+  });
+
+  final int daysLeft;
+  final double hpProgress;
+  final VoidCallback onViewBattle;
+
+  @override
+  Widget build(BuildContext context) {
+    final daysLabel = daysLeft == 1 ? '1 day left' : '$daysLeft days left';
+    final hpPct = (hpProgress * 100).round();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 420;
+        return Container(
+          padding: EdgeInsets.fromLTRB(
+            compact ? 12 : 14,
+            compact ? 12 : 14,
+            compact ? 12 : 14,
+            compact ? 12 : 14,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            gradient: const LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [Color(0xFF5A3124), Color(0xFF8D5630), Color(0xFF2B211D)],
+            ),
+            border: Border.all(
+              color: const Color(0xFFE9D5B7).withValues(alpha: 0.65),
+              width: 1.4,
+            ),
+          ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: const RadialGradient(
+                      center: Alignment(0.8, -0.35),
+                      radius: 0.95,
+                      colors: [Color(0x66FFC86A), Colors.transparent],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: compact ? -26 : -22,
+                bottom: compact ? -28 : -18,
+                child: Icon(
+                  Icons.whatshot_rounded,
+                  size: compact ? 118 : 132,
+                  color: const Color(0x77FF8E35),
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: compact ? 34 : 40,
+                        height: compact ? 34 : 40,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFD63E2A), Color(0xFFAC1F11)],
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.whatshot_rounded,
+                          color: Colors.white,
+                          size: compact ? 19 : 22,
+                        ),
+                      ),
+                      SizedBox(width: compact ? 8 : 10),
+                      Expanded(
+                        child: Text(
+                          'Weekly Boss • $daysLabel',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: const Color(0xFFF8EFE2),
+                            fontSize: compact ? 15 : 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: onViewBattle,
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFFFDE5BF),
+                          textStyle: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: compact ? 12 : 14,
+                          ),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: compact ? 6 : 10,
+                            vertical: compact ? 4 : 6,
+                          ),
+                        ),
+                        child: const Text('View Battle'),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: compact ? 10 : 14),
+                  Text(
+                    'Boss HP: $hpPct%',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: compact ? 16 : 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(height: compact ? 10 : 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: hpProgress,
+                      minHeight: compact ? 11 : 14,
+                      backgroundColor: const Color(
+                        0xFFE7D9C4,
+                      ).withValues(alpha: 0.82),
+                      color: const Color(0xFFC8642A),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _InlineStatsBar extends StatelessWidget {
+  const _InlineStatsBar({
+    required this.currentStreak,
+    required this.xpToday,
+    required this.questsDone,
+    required this.questsTotal,
+  });
+
+  final int currentStreak;
+  final int xpToday;
+  final int questsDone;
+  final int questsTotal;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 420;
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.fromLTRB(
+            12,
+            compact ? 8 : 10,
+            12,
+            compact ? 8 : 10,
+          ),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHigh.withValues(alpha: 0.8),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: scheme.outline.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _InlineStatItem(
+                  icon: Icons.local_fire_department_rounded,
+                  iconColor: const Color(0xFFE06B29),
+                  label: compact
+                      ? '${currentStreak}d Streak'
+                      : '$currentStreak Day Streak',
+                  compact: compact,
+                ),
+              ),
+              Container(
+                width: 1,
+                height: compact ? 20 : 24,
+                color: scheme.outline.withValues(alpha: 0.35),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _InlineStatItem(
+                  icon: Icons.bolt_rounded,
+                  iconColor: const Color(0xFF42B86A),
+                  label: compact ? '+$xpToday XP' : '+$xpToday XP Today',
+                  compact: compact,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                width: 1,
+                height: compact ? 20 : 24,
+                color: scheme.outline.withValues(alpha: 0.35),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _InlineStatItem(
+                  icon: Icons.task_alt_rounded,
+                  iconColor: scheme.primary,
+                  label: compact
+                      ? '$questsDone/$questsTotal Quests'
+                      : 'Quests $questsDone/$questsTotal',
+                  compact: compact,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _InlineStatItem extends StatelessWidget {
+  const _InlineStatItem({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.compact,
+  });
 
   final IconData icon;
+  final Color iconColor;
   final String label;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 18, color: scheme.primary),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(
-            color: scheme.onSurface,
-            fontWeight: FontWeight.w600,
+        Icon(icon, size: compact ? 20 : 22, color: iconColor),
+        SizedBox(width: compact ? 6 : 8),
+        Expanded(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              label,
+              maxLines: 1,
+              style: TextStyle(
+                color: scheme.onSurface,
+                fontSize: compact ? 14 : 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ),
       ],
@@ -1391,22 +1327,10 @@ class _GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            scheme.surfaceContainerHigh.withValues(alpha: 0.78),
-            scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-          ],
-        ),
-        border: Border.all(color: scheme.outline.withValues(alpha: 0.32)),
-      ),
-      child: child,
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: Padding(padding: padding, child: child),
     );
   }
 }

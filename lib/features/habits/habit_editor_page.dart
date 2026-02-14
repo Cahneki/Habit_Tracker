@@ -31,11 +31,7 @@ class HabitEditorResult {
 }
 
 class HabitEditorPage extends StatefulWidget {
-  const HabitEditorPage({
-    super.key,
-    this.habit,
-    this.draftId,
-  });
+  const HabitEditorPage({super.key, this.habit, this.draftId});
 
   final Habit? habit;
   final String? draftId;
@@ -63,7 +59,8 @@ class _HabitEditorPageState extends State<HabitEditorPage> {
     _timeOfDay = widget.habit?.timeOfDay ?? 'morning';
     _iconId = widget.habit?.iconId ?? 'magic';
     _iconPath = widget.habit?.iconPath ?? '';
-    _draftId = widget.habit?.id ??
+    _draftId =
+        widget.habit?.id ??
         widget.draftId ??
         'draft-${DateTime.now().millisecondsSinceEpoch}';
     _frequency = _selectedDays.length == 7
@@ -213,16 +210,15 @@ class _HabitEditorPageState extends State<HabitEditorPage> {
     final path = _iconPath.trim();
 
     return Container(
-      width: 40,
-      height: 40,
+      width: 30,
+      height: 30,
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.outline.withValues(alpha: 0.5)),
+        color: scheme.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(9),
       ),
       child: path.isNotEmpty && _iconId == 'custom'
           ? ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(7),
               child: Image.file(
                 File(path),
                 fit: BoxFit.cover,
@@ -230,13 +226,11 @@ class _HabitEditorPageState extends State<HabitEditorPage> {
                     Icon(icon, color: color),
               ),
             )
-          : Icon(icon, color: color),
+          : Icon(icon, color: color, size: 19),
     );
   }
 
   int get _xpReward => widget.habit?.baseXp ?? 20;
-
-  int get _goldReward => 10;
 
   bool get _canSave {
     if (_controller.text.trim().isEmpty) return false;
@@ -268,10 +262,7 @@ class _HabitEditorPageState extends State<HabitEditorPage> {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: scheme.primary,
-          fontWeight: FontWeight.w700,
-        ),
+        style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -289,7 +280,9 @@ class _HabitEditorPageState extends State<HabitEditorPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
-              color: selected ? scheme.surfaceContainerHigh : Colors.transparent,
+              color: selected
+                  ? scheme.surfaceContainerHigh
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(18),
             ),
             child: Center(
@@ -326,8 +319,15 @@ class _HabitEditorPageState extends State<HabitEditorPage> {
   Widget _dayChip(String label, int dayIndex) {
     final scheme = Theme.of(context).colorScheme;
     final selected = _selectedDays.contains(dayIndex);
-    final border = selected ? scheme.primary : scheme.outline;
-    final textColor = selected ? scheme.onSurface : scheme.onSurfaceVariant;
+    final border = selected
+        ? scheme.primary.withValues(alpha: 0.7)
+        : scheme.outline;
+    final textColor = selected
+        ? scheme.onPrimaryContainer
+        : scheme.onSurfaceVariant;
+    final fill = selected
+        ? scheme.primaryContainer.withValues(alpha: 0.95)
+        : scheme.surface;
 
     return InkWell(
       onTap: () => _toggleDay(dayIndex),
@@ -338,15 +338,12 @@ class _HabitEditorPageState extends State<HabitEditorPage> {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: border, width: 2),
-          color: scheme.surface,
+          border: Border.all(color: border, width: 1.5),
+          color: fill,
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: textColor,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w700, color: textColor),
         ),
       ),
     );
@@ -399,7 +396,6 @@ class _HabitEditorPageState extends State<HabitEditorPage> {
   Widget _bountyReward() {
     final scheme = Theme.of(context).colorScheme;
     final xp = _xpReward;
-    final gold = _goldReward;
 
     Widget rewardItem({
       required IconData icon,
@@ -443,7 +439,7 @@ class _HabitEditorPageState extends State<HabitEditorPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'BOUNTY REWARD',
+            'QUEST REWARD',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w800,
@@ -458,12 +454,6 @@ class _HabitEditorPageState extends State<HabitEditorPage> {
                 icon: Icons.bolt_rounded,
                 value: '$xp XP',
                 color: scheme.primary,
-              ),
-              const SizedBox(width: 20),
-              rewardItem(
-                icon: Icons.monetization_on_rounded,
-                value: '$gold GOLD',
-                color: scheme.tertiary,
               ),
             ],
           ),
@@ -491,8 +481,8 @@ class _HabitEditorPageState extends State<HabitEditorPage> {
                   child: Text(
                     _isEditing ? 'EDIT QUEST' : 'ADD QUEST',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -508,17 +498,22 @@ class _HabitEditorPageState extends State<HabitEditorPage> {
               controller: _controller,
               decoration: InputDecoration(
                 hintText: 'Drink Water',
-                suffixIcon: InkWell(
-                  onTap: _pickIcon,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: _iconPreview(),
+                suffixIcon: Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: IconButton(
+                    tooltip: 'Choose icon',
+                    onPressed: _pickIcon,
+                    style: IconButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(34, 34),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon: _iconPreview(),
                   ),
                 ),
                 suffixIconConstraints: const BoxConstraints(
-                  minWidth: 56,
-                  minHeight: 56,
+                  minWidth: 44,
+                  minHeight: 44,
                 ),
               ),
               autofocus: !_isEditing,
@@ -529,21 +524,23 @@ class _HabitEditorPageState extends State<HabitEditorPage> {
             const SizedBox(height: 12),
             _frequencyToggle(),
             const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _sectionLabel('Active Days'),
-                _pill('$selectedCount/7 SELECTED'),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(dayLabels.length, (i) {
-                return _dayChip(dayLabels[i], i == 0 ? 6 : i - 1);
-              }),
-            ),
-            const SizedBox(height: 24),
+            if (_frequency != HabitFrequency.daily) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _sectionLabel('Active Days'),
+                  _pill('$selectedCount/7 SELECTED'),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(dayLabels.length, (i) {
+                  return _dayChip(dayLabels[i], i == 0 ? 6 : i - 1);
+                }),
+              ),
+              const SizedBox(height: 24),
+            ],
             _sectionLabel('Time of Day'),
             const SizedBox(height: 12),
             Row(
