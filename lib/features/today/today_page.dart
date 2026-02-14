@@ -90,6 +90,8 @@ class _HabitsDashboardVm {
     required this.questsTotal,
     required this.xpToday,
     required this.bossDamageToday,
+    required this.totalCompletions,
+    required this.lifetimeBossDamage,
     required this.weeklyDaysLeft,
     required this.weeklyProgress,
   });
@@ -109,6 +111,8 @@ class _HabitsDashboardVm {
   final int questsTotal;
   final int xpToday;
   final int bossDamageToday;
+  final int totalCompletions;
+  final int lifetimeBossDamage;
   final int weeklyDaysLeft;
   final double weeklyProgress;
 }
@@ -153,6 +157,12 @@ class _TodayPageState extends State<TodayPage> {
       weekEnd,
       habitIds: habitIds,
     );
+    final allTimeCompletions = await widget.repo
+        .getCompletionDaysForRangeByHabit(
+          DateTime(1970, 1, 1),
+          startOfLocalDay(now).add(const Duration(days: 1)),
+          habitIds: habitIds,
+        );
 
     final rows = <_HabitRowVm>[];
     final upcomingRows = <_UpcomingRowVm>[];
@@ -163,6 +173,7 @@ class _TodayPageState extends State<TodayPage> {
     var questsTotal = 0;
     var xpToday = 0;
     var bossDamageToday = 0;
+    var lifetimeBossDamage = 0;
 
     for (var i = 0; i < habits.length; i++) {
       final habit = habits[i];
@@ -222,6 +233,11 @@ class _TodayPageState extends State<TodayPage> {
           ),
         );
       }
+
+      final lifetimeDoneCount =
+          (allTimeCompletions[habit.id] ?? const <String>{}).length;
+      lifetimeBossDamage +=
+          lifetimeDoneCount * _baseDamageForHabit(habit.baseXp);
     }
 
     final totalCompletions = await widget.repo.getTotalCompletionsCount();
@@ -256,6 +272,8 @@ class _TodayPageState extends State<TodayPage> {
       questsTotal: questsTotal,
       xpToday: xpToday,
       bossDamageToday: bossDamageToday,
+      totalCompletions: totalCompletions,
+      lifetimeBossDamage: lifetimeBossDamage,
       weeklyDaysLeft: weeklyBattle.daysLeft,
       weeklyProgress: weeklyBattle.progressPct,
     );
@@ -604,6 +622,73 @@ class _TodayPageState extends State<TodayPage> {
         .toList();
   }
 
+  List<Widget> _buildUpcomingRows(List<_UpcomingRowVm> rows) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return rows
+        .map(
+          (row) => InkWell(
+            key: ValueKey('today-upcoming-${row.habit.id}-${row.manualOrder}'),
+            onTap: () => _editHabit(row.habit),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHigh.withValues(alpha: 0.8),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: scheme.outline.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.schedule_rounded,
+                      color: scheme.onSurfaceVariant,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          row.habit.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          row.subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: scheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        )
+        .toList();
+  }
+
   List<_HabitRowVm> _sortRows(List<_HabitRowVm> rows) {
     final sorted = List<_HabitRowVm>.from(rows);
     switch (_sort) {
@@ -678,14 +763,6 @@ class _TodayPageState extends State<TodayPage> {
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'fab-today',
-        onPressed: _addHabit,
-        backgroundColor: scheme.primary,
-        foregroundColor: scheme.onPrimary,
-        child: const Icon(Icons.add),
-      ),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -710,6 +787,9 @@ class _TodayPageState extends State<TodayPage> {
                         .where((r) => !r.stats.completedToday)
                         .toList();
                     final sortedActive = _sortRows(activeRows);
+                    final sortedUpcoming = List<_UpcomingRowVm>.from(
+                      vm.upcomingRows,
+                    )..sort((a, b) => a.manualOrder.compareTo(b.manualOrder));
                     final bossHpProgress = (1 - vm.weeklyProgress).clamp(
                       0.0,
                       1.0,
@@ -725,8 +805,6 @@ class _TodayPageState extends State<TodayPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const _TopBar(),
-                            const SizedBox(height: 14),
                             _GlassCard(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -786,6 +864,21 @@ class _TodayPageState extends State<TodayPage> {
                                     xpToday: vm.xpToday,
                                     questsDone: vm.questsDone,
                                     questsTotal: vm.questsTotal,
+                                    bossDamageToday: vm.bossDamageToday,
+                                    bestStreak: vm.bestStreak,
+                                    totalCompletions: vm.totalCompletions,
+                                    lifetimeBossDamage: vm.lifetimeBossDamage,
+                                    level: vm.level,
+                                    xp: vm.xp,
+                                    xpGoal: vm.xpGoal,
+                                    todayQuestItems: vm.rows
+                                        .map(
+                                          (row) => _DailySummaryQuestItem(
+                                            name: row.habit.name,
+                                            completed: row.stats.completedToday,
+                                          ),
+                                        )
+                                        .toList(),
                                   ),
                                   const SizedBox(height: 14),
                                   _WeeklyBossCard(
@@ -823,11 +916,27 @@ class _TodayPageState extends State<TodayPage> {
                                   if (sortedActive.isEmpty)
                                     Padding(
                                       padding: const EdgeInsets.all(16),
-                                      child: Text(
-                                        'No active quests scheduled today.',
-                                        style: TextStyle(
-                                          color: scheme.onSurfaceVariant,
-                                          fontWeight: FontWeight.w600,
+                                      child: Center(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              'No active quests scheduled today.',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: scheme.onSurfaceVariant,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            ElevatedButton.icon(
+                                              onPressed: _addHabit,
+                                              icon: const Icon(
+                                                Icons.add_rounded,
+                                              ),
+                                              label: const Text('Add Quest'),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     )
@@ -836,6 +945,23 @@ class _TodayPageState extends State<TodayPage> {
                                 ],
                               ),
                             ),
+                            if (sortedUpcoming.isNotEmpty) ...[
+                              const SizedBox(height: 14),
+                              Text(
+                                'Up Next (${sortedUpcoming.length})',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              _GlassCard(
+                                padding: EdgeInsets.zero,
+                                child: Column(
+                                  children: _buildUpcomingRows(sortedUpcoming),
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 14),
                             _GlassCard(
                               padding: EdgeInsets.zero,
@@ -1018,38 +1144,6 @@ class _AvatarLevelBadge extends StatelessWidget {
   }
 }
 
-class _TopBar extends StatelessWidget {
-  const _TopBar();
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        const SizedBox(width: 42, height: 42),
-        const Spacer(),
-        const SizedBox(width: 42, height: 42),
-        const Spacer(),
-        SizedBox(
-          width: 42,
-          height: 42,
-          child: OutlinedButton(
-            onPressed: () {},
-            style: OutlinedButton.styleFrom(
-              padding: EdgeInsets.zero,
-              side: BorderSide(color: scheme.outline),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Icon(Icons.notifications_rounded, size: 20),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _WeeklyBossCard extends StatelessWidget {
   const _WeeklyBossCard({
     required this.daysLeft,
@@ -1193,18 +1287,230 @@ class _WeeklyBossCard extends StatelessWidget {
   }
 }
 
-class _InlineStatsBar extends StatelessWidget {
+enum _StatsAnimationPhase { none, xp, streak, hp }
+
+class _StatDescriptor {
+  const _StatDescriptor({
+    required this.id,
+    required this.label,
+    required this.tooltip,
+    required this.icon,
+    required this.color,
+    this.hero = false,
+  });
+
+  final String id;
+  final String label;
+  final String tooltip;
+  final IconData icon;
+  final Color color;
+  final bool hero;
+
+  _StatDescriptor copyWith({String? label}) {
+    return _StatDescriptor(
+      id: id,
+      label: label ?? this.label,
+      tooltip: tooltip,
+      icon: icon,
+      color: color,
+      hero: hero,
+    );
+  }
+}
+
+class _DailySummaryQuestItem {
+  const _DailySummaryQuestItem({required this.name, required this.completed});
+
+  final String name;
+  final bool completed;
+}
+
+class _InlineStatsBar extends StatefulWidget {
   const _InlineStatsBar({
     required this.currentStreak,
+    required this.bestStreak,
     required this.xpToday,
     required this.questsDone,
     required this.questsTotal,
+    required this.bossDamageToday,
+    required this.totalCompletions,
+    required this.lifetimeBossDamage,
+    required this.level,
+    required this.xp,
+    required this.xpGoal,
+    required this.todayQuestItems,
   });
 
   final int currentStreak;
+  final int bestStreak;
   final int xpToday;
   final int questsDone;
   final int questsTotal;
+  final int bossDamageToday;
+  final int totalCompletions;
+  final int lifetimeBossDamage;
+  final int level;
+  final int xp;
+  final int xpGoal;
+  final List<_DailySummaryQuestItem> todayQuestItems;
+
+  @override
+  State<_InlineStatsBar> createState() => _InlineStatsBarState();
+}
+
+class _InlineStatsBarState extends State<_InlineStatsBar> {
+  static const _xpAnimDuration = Duration(milliseconds: 180);
+  static const _streakPulseDuration = Duration(milliseconds: 170);
+  static const _hpFlashDuration = Duration(milliseconds: 180);
+
+  late int _xpFrom;
+  late int _xpTo;
+  int _xpAnimSeed = 0;
+  bool _streakPulse = false;
+  bool _hpFlash = false;
+  int _phaseToken = 0;
+  _StatsAnimationPhase _phase = _StatsAnimationPhase.none;
+
+  @override
+  void initState() {
+    super.initState();
+    _xpFrom = widget.xpToday;
+    _xpTo = widget.xpToday;
+  }
+
+  @override
+  void didUpdateWidget(covariant _InlineStatsBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final xpChanged = widget.xpToday != oldWidget.xpToday;
+    final streakIncreased = widget.currentStreak > oldWidget.currentStreak;
+    final hpChanged = widget.bossDamageToday != oldWidget.bossDamageToday;
+
+    if (xpChanged) {
+      _startXpAnimation(from: oldWidget.xpToday, to: widget.xpToday);
+      return;
+    }
+
+    _xpFrom = widget.xpToday;
+    _xpTo = widget.xpToday;
+
+    if (streakIncreased) {
+      _startStreakPulse();
+      return;
+    }
+
+    if (hpChanged) {
+      _startHpFlash();
+    }
+  }
+
+  void _startXpAnimation({required int from, required int to}) {
+    final token = ++_phaseToken;
+    setState(() {
+      _phase = _StatsAnimationPhase.xp;
+      _xpFrom = from;
+      _xpTo = to;
+      _xpAnimSeed++;
+      _streakPulse = false;
+      _hpFlash = false;
+    });
+
+    Future.delayed(_xpAnimDuration + const Duration(milliseconds: 40), () {
+      _finishAnimation(token, _StatsAnimationPhase.xp);
+    });
+  }
+
+  void _startStreakPulse() {
+    final token = ++_phaseToken;
+    setState(() {
+      _phase = _StatsAnimationPhase.streak;
+      _streakPulse = true;
+      _hpFlash = false;
+      _xpFrom = widget.xpToday;
+      _xpTo = widget.xpToday;
+    });
+
+    Future.delayed(_streakPulseDuration, () {
+      if (!mounted || token != _phaseToken) return;
+      setState(() {
+        _streakPulse = false;
+      });
+    });
+
+    Future.delayed(_streakPulseDuration + const Duration(milliseconds: 40), () {
+      _finishAnimation(token, _StatsAnimationPhase.streak);
+    });
+  }
+
+  void _startHpFlash() {
+    final token = ++_phaseToken;
+    setState(() {
+      _phase = _StatsAnimationPhase.hp;
+      _hpFlash = true;
+      _streakPulse = false;
+      _xpFrom = widget.xpToday;
+      _xpTo = widget.xpToday;
+    });
+
+    Future.delayed(_hpFlashDuration, () {
+      if (!mounted || token != _phaseToken) return;
+      setState(() {
+        _hpFlash = false;
+      });
+    });
+
+    Future.delayed(_hpFlashDuration + const Duration(milliseconds: 40), () {
+      _finishAnimation(token, _StatsAnimationPhase.hp);
+    });
+  }
+
+  void _finishAnimation(int token, _StatsAnimationPhase phase) {
+    if (!mounted || token != _phaseToken || _phase != phase) return;
+    setState(() {
+      _phase = _StatsAnimationPhase.none;
+    });
+  }
+
+  Future<void> _openDailySummary() async {
+    await Navigator.of(context).push<void>(
+      PageRouteBuilder<void>(
+        opaque: false,
+        barrierDismissible: false,
+        barrierColor: Colors.black.withValues(alpha: 0.36),
+        barrierLabel: 'Daily Summary',
+        transitionDuration: const Duration(milliseconds: 140),
+        reverseTransitionDuration: const Duration(milliseconds: 120),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            _DailySummaryScreen(
+              xpToday: widget.xpToday,
+              currentStreak: widget.currentStreak,
+              bestStreak: widget.bestStreak,
+              questsDone: widget.questsDone,
+              questsTotal: widget.questsTotal,
+              bossDamageToday: widget.bossDamageToday,
+              totalCompletions: widget.totalCompletions,
+              lifetimeBossDamage: widget.lifetimeBossDamage,
+              level: widget.level,
+              xp: widget.xp,
+              xpGoal: widget.xpGoal,
+              questItems: widget.todayQuestItems,
+            ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final fade = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+          final scale = Tween<double>(begin: 0.98, end: 1.0).animate(
+            CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+          );
+
+          return FadeTransition(
+            opacity: fade,
+            child: ScaleTransition(scale: scale, child: child),
+          );
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1212,63 +1518,97 @@ class _InlineStatsBar extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 420;
-        return Container(
-          width: double.infinity,
-          padding: EdgeInsets.fromLTRB(
-            12,
-            compact ? 8 : 10,
-            12,
-            compact ? 8 : 10,
-          ),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHigh.withValues(alpha: 0.8),
+        final xpColor =
+            Color.lerp(const Color(0xFF2F9E63), scheme.primary, 0.35) ??
+            scheme.primary;
+        final streakColor =
+            Color.lerp(const Color(0xFFB87735), scheme.tertiary, 0.5) ??
+            scheme.tertiary;
+        final secondaryColor = scheme.onSurfaceVariant.withValues(alpha: 0.68);
+        final bossHpColor =
+            Color.lerp(const Color(0xFF3DAF69), scheme.primary, 0.45) ??
+            scheme.primary;
+
+        final streak = _StatDescriptor(
+          id: 'streak',
+          label: 'Day ${widget.currentStreak} streak',
+          tooltip: 'Current consecutive-day streak across scheduled quests.',
+          icon: Icons.local_fire_department_rounded,
+          color: streakColor,
+        );
+
+        final xp = _StatDescriptor(
+          id: 'xp_today',
+          label: '+${widget.xpToday} XP today',
+          tooltip: 'Total XP earned from quests completed today.',
+          icon: Icons.bolt_rounded,
+          color: xpColor,
+          hero: true,
+        );
+
+        final secondaryStats = <_StatDescriptor>[
+          if (widget.questsTotal > 0)
+            _StatDescriptor(
+              id: 'quests_today',
+              label: '${widget.questsDone} of ${widget.questsTotal} quests',
+              tooltip: 'Progress across quests scheduled for today.',
+              icon: Icons.task_alt_rounded,
+              color: secondaryColor,
+            ),
+          if (widget.bossDamageToday != 0)
+            _StatDescriptor(
+              id: 'boss_hp_lost',
+              label: 'Boss lost ${widget.bossDamageToday} HP',
+              tooltip: 'Boss HP removed by completed quests today.',
+              icon: Icons.whatshot_rounded,
+              color: bossHpColor,
+            ),
+        ];
+
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: scheme.outline.withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: _InlineStatItem(
-                  icon: Icons.local_fire_department_rounded,
-                  iconColor: const Color(0xFFE06B29),
-                  label: compact
-                      ? '${currentStreak}d Streak'
-                      : '$currentStreak Day Streak',
-                  compact: compact,
+            onTap: _openDailySummary,
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(
+                12,
+                compact ? 8 : 10,
+                12,
+                compact ? 8 : 10,
+              ),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: scheme.outline.withValues(alpha: 0.3),
                 ),
               ),
-              Container(
-                width: 1,
-                height: compact ? 20 : 24,
-                color: scheme.outline.withValues(alpha: 0.35),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _PrimaryStatsRow(
+                    streak: streak,
+                    xp: xp,
+                    compact: compact,
+                    streakScale: _streakPulse ? 1.06 : 1.0,
+                    xpFrom: _xpFrom,
+                    xpTo: _xpTo,
+                    xpAnimSeed: _xpAnimSeed,
+                    animateXp: _phase == _StatsAnimationPhase.xp,
+                  ),
+                  if (secondaryStats.isNotEmpty) ...[
+                    SizedBox(height: compact ? 8 : 10),
+                    _SecondaryStatsRow(
+                      descriptors: secondaryStats,
+                      compact: compact,
+                      hpFlash: _hpFlash,
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _InlineStatItem(
-                  icon: Icons.bolt_rounded,
-                  iconColor: const Color(0xFF42B86A),
-                  label: compact ? '+$xpToday XP' : '+$xpToday XP Today',
-                  compact: compact,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                width: 1,
-                height: compact ? 20 : 24,
-                color: scheme.outline.withValues(alpha: 0.35),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _InlineStatItem(
-                  icon: Icons.task_alt_rounded,
-                  iconColor: scheme.primary,
-                  label: compact
-                      ? '$questsDone/$questsTotal Quests'
-                      : 'Quests $questsDone/$questsTotal',
-                  compact: compact,
-                ),
-              ),
-            ],
+            ),
           ),
         );
       },
@@ -1276,42 +1616,670 @@ class _InlineStatsBar extends StatelessWidget {
   }
 }
 
-class _InlineStatItem extends StatelessWidget {
-  const _InlineStatItem({
-    required this.icon,
-    required this.iconColor,
-    required this.label,
+class _PrimaryStatsRow extends StatelessWidget {
+  const _PrimaryStatsRow({
+    required this.streak,
+    required this.xp,
     required this.compact,
+    required this.streakScale,
+    required this.xpFrom,
+    required this.xpTo,
+    required this.xpAnimSeed,
+    required this.animateXp,
   });
 
-  final IconData icon;
-  final Color iconColor;
-  final String label;
+  final _StatDescriptor streak;
+  final _StatDescriptor xp;
   final bool compact;
+  final double streakScale;
+  final int xpFrom;
+  final int xpTo;
+  final int xpAnimSeed;
+  final bool animateXp;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Icon(icon, size: compact ? 20 : 22, color: iconColor),
-        SizedBox(width: compact ? 6 : 8),
         Expanded(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
+          child: Align(
             alignment: Alignment.centerLeft,
-            child: Text(
-              label,
-              maxLines: 1,
-              style: TextStyle(
-                color: scheme.onSurface,
-                fontSize: compact ? 14 : 16,
-                fontWeight: FontWeight.w700,
+            child: _StatUnit(
+              descriptor: streak,
+              compact: compact,
+              scale: streakScale,
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: TweenAnimationBuilder<double>(
+              key: ValueKey<int>(xpAnimSeed),
+              tween: Tween<double>(
+                begin: xpFrom.toDouble(),
+                end: xpTo.toDouble(),
               ),
+              duration: animateXp
+                  ? const Duration(milliseconds: 180)
+                  : Duration.zero,
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) {
+                final animated = xp.copyWith(
+                  label: '+${value.round()} XP today',
+                );
+                return _StatUnit(descriptor: animated, compact: compact);
+              },
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SecondaryStatsRow extends StatelessWidget {
+  const _SecondaryStatsRow({
+    required this.descriptors,
+    required this.compact,
+    required this.hpFlash,
+  });
+
+  final List<_StatDescriptor> descriptors;
+  final bool compact;
+  final bool hpFlash;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = descriptors.take(2).toList();
+    if (visible.isEmpty) return const SizedBox.shrink();
+    if (visible.length == 1) {
+      return Row(
+        children: [
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _buildStat(visible.first),
+            ),
+          ),
+          const SizedBox(width: 16),
+          const Expanded(child: SizedBox()),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _buildStat(visible[0]),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _buildStat(visible[1]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStat(_StatDescriptor descriptor) {
+    final highlight = hpFlash && descriptor.id == 'boss_hp_lost';
+    return _StatUnit(
+      descriptor: descriptor,
+      compact: compact,
+      backgroundColor: highlight
+          ? descriptor.color.withValues(alpha: 0.18)
+          : null,
+    );
+  }
+}
+
+class _StatUnit extends StatelessWidget {
+  const _StatUnit({
+    required this.descriptor,
+    required this.compact,
+    this.backgroundColor,
+    this.scale = 1.0,
+  });
+
+  final _StatDescriptor descriptor;
+  final bool compact;
+  final Color? backgroundColor;
+  final double scale;
+
+  @override
+  Widget build(BuildContext context) {
+    final uniformFontSize = compact ? 13.0 : 14.0;
+    final textStyle = TextStyle(
+      color: descriptor.color,
+      fontSize: uniformFontSize,
+      fontWeight: descriptor.hero ? FontWeight.w800 : FontWeight.w700,
+      height: 1.15,
+    );
+    final iconSize = compact ? 15.0 : 16.0;
+
+    return AnimatedScale(
+      duration: const Duration(milliseconds: 170),
+      curve: Curves.easeOutCubic,
+      scale: scale,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 8 : 10,
+          vertical: compact ? 6 : 8,
+        ),
+        decoration: BoxDecoration(
+          color: backgroundColor ?? Colors.transparent,
+          borderRadius: BorderRadius.circular(descriptor.hero ? 14 : 12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.max,
+          children: [
+            Icon(descriptor.icon, size: iconSize, color: descriptor.color),
+            const SizedBox(width: 6),
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(descriptor.label, maxLines: 1, style: textStyle),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+enum _SummaryRange { today, lifetime }
+
+class _DailySummaryScreen extends StatefulWidget {
+  const _DailySummaryScreen({
+    required this.xpToday,
+    required this.currentStreak,
+    required this.bestStreak,
+    required this.questsDone,
+    required this.questsTotal,
+    required this.bossDamageToday,
+    required this.totalCompletions,
+    required this.lifetimeBossDamage,
+    required this.level,
+    required this.xp,
+    required this.xpGoal,
+    required this.questItems,
+  });
+
+  final int xpToday;
+  final int currentStreak;
+  final int bestStreak;
+  final int questsDone;
+  final int questsTotal;
+  final int bossDamageToday;
+  final int totalCompletions;
+  final int lifetimeBossDamage;
+  final int level;
+  final int xp;
+  final int xpGoal;
+  final List<_DailySummaryQuestItem> questItems;
+
+  @override
+  State<_DailySummaryScreen> createState() => _DailySummaryScreenState();
+}
+
+class _DailySummaryScreenState extends State<_DailySummaryScreen> {
+  _SummaryRange _range = _SummaryRange.today;
+
+  void _toggleRange() {
+    setState(() {
+      _range = _range == _SummaryRange.today
+          ? _SummaryRange.lifetime
+          : _SummaryRange.today;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isLifetime = _range == _SummaryRange.lifetime;
+    final scheme = Theme.of(context).colorScheme;
+    final progressValue = widget.xpGoal == 0
+        ? 0.0
+        : (widget.xp / widget.xpGoal).clamp(0.0, 1.0);
+    final xpColor =
+        Color.lerp(const Color(0xFF2F9E63), scheme.primary, 0.35) ??
+        scheme.primary;
+    final streakColor =
+        Color.lerp(const Color(0xFFB87735), scheme.tertiary, 0.5) ??
+        scheme.tertiary;
+    final checklistDone =
+        Color.lerp(const Color(0xFF64B38F), scheme.primary, 0.4) ??
+        scheme.primary;
+    final checklistTodo = scheme.outline.withValues(alpha: 0.65);
+    final cardColor = scheme.brightness == Brightness.dark
+        ? const Color(0xFF111418)
+        : const Color(0xFFFCFCFE);
+    final summaryTitle = isLifetime ? 'Lifetime Summary' : 'Daily Summary';
+    final rangeLabel = isLifetime ? 'Lifetime' : 'Today';
+    final streakLabel = isLifetime
+        ? 'Best ${widget.bestStreak} streak'
+        : 'Day ${widget.currentStreak} streak';
+    final xpHeadline = isLifetime
+        ? '+${widget.xp} XP gained lifetime'
+        : '+${widget.xpToday} XP gained today';
+    final impactHeading = isLifetime ? 'Lifetime Quests' : "Today's Quests";
+    final impactLine = isLifetime
+        ? '${widget.totalCompletions} total quests completed'
+        : '${widget.questsDone} of ${widget.questsTotal} quests completed';
+    final dealtDamage = isLifetime
+        ? widget.lifetimeBossDamage
+        : widget.bossDamageToday;
+    final showImpactLine = isLifetime || widget.questsTotal > 0;
+    final showQuestList = !isLifetime && widget.questItems.isNotEmpty;
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          child: Align(
+            alignment: Alignment.center,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.18),
+                      blurRadius: 36,
+                      spreadRadius: 2,
+                      offset: const Offset(0, 16),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(22, 14, 22, 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    summaryTitle,
+                                    style: TextStyle(
+                                      color: scheme.onSurface,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  TextButton(
+                                    onPressed: _toggleRange,
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: scheme.onSurfaceVariant,
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 6,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          rangeLabel,
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 2),
+                                        const Icon(
+                                          Icons.swap_horiz_rounded,
+                                          size: 16,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 42,
+                                    height: 42,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(999),
+                                      border: Border.all(
+                                        color: scheme.primary.withValues(
+                                          alpha: 0.55,
+                                        ),
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.hiking_rounded,
+                                      color: scheme.primary,
+                                      size: 22,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'LVL ${widget.level}',
+                                    style: TextStyle(
+                                      color: scheme.onSurfaceVariant,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  14,
+                                  16,
+                                  14,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: scheme.surface,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: scheme.outline.withValues(
+                                      alpha: 0.25,
+                                    ),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: streakColor.withValues(
+                                          alpha: 0.14,
+                                        ),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.local_fire_department_rounded,
+                                            color: streakColor,
+                                            size: 16,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            streakLabel,
+                                            style: TextStyle(
+                                              color: scheme.onSurface,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.bolt_rounded,
+                                          color: xpColor,
+                                          size: 24,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            xpHeadline,
+                                            style: TextStyle(
+                                              color: scheme.onSurface,
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 14),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(999),
+                                      child: LinearProgressIndicator(
+                                        value: progressValue,
+                                        minHeight: 14,
+                                        backgroundColor:
+                                            scheme.surfaceContainerHighest,
+                                        color: xpColor,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Text(
+                                        '${widget.xp} / ${widget.xpGoal}',
+                                        style: TextStyle(
+                                          color: scheme.onSurfaceVariant,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              Text(
+                                impactHeading,
+                                style: TextStyle(
+                                  color: scheme.onSurface,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              if (showImpactLine)
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle_outline_rounded,
+                                      color: scheme.primary,
+                                      size: 22,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        impactLine,
+                                        style: TextStyle(
+                                          color: scheme.onSurface,
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              if (showQuestList) ...[
+                                const SizedBox(height: 10),
+                                ...widget.questItems.map(
+                                  (item) => _SummaryQuestLine(
+                                    title: item.name,
+                                    done: item.completed,
+                                    doneColor: checklistDone,
+                                    todoColor: checklistTodo,
+                                  ),
+                                ),
+                              ],
+                              if (dealtDamage != 0) ...[
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Boss Damage Dealt',
+                                  style: TextStyle(
+                                    color: scheme.onSurface,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.whatshot_rounded,
+                                      color: streakColor,
+                                      size: 26,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    RichText(
+                                      text: TextSpan(
+                                        style: TextStyle(
+                                          color: scheme.onSurface,
+                                          fontSize: 19,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        children: [
+                                          TextSpan(
+                                            text: '$dealtDamage HP',
+                                            style: TextStyle(
+                                              color: streakColor,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                          const TextSpan(text: ' dealt'),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+                        decoration: BoxDecoration(
+                          color: scheme.surface.withValues(alpha: 0.7),
+                          border: Border(
+                            top: BorderSide(
+                              color: scheme.outline.withValues(alpha: 0.15),
+                            ),
+                          ),
+                        ),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                            gradient: LinearGradient(
+                              colors: [
+                                scheme.primary.withValues(alpha: 0.92),
+                                scheme.primary.withValues(alpha: 0.72),
+                              ],
+                            ),
+                          ),
+                          child: TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: TextButton.styleFrom(
+                              foregroundColor: scheme.onPrimary,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              textStyle: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            child: const Text('Continue'),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryQuestLine extends StatelessWidget {
+  const _SummaryQuestLine({
+    required this.title,
+    required this.done,
+    required this.doneColor,
+    required this.todoColor,
+  });
+
+  final String title;
+  final bool done;
+  final Color doneColor;
+  final Color todoColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: done
+                      ? doneColor.withValues(alpha: 0.16)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: done ? doneColor : todoColor,
+                    width: 2,
+                  ),
+                ),
+                child: done
+                    ? Icon(Icons.check_rounded, color: doneColor, size: 16)
+                    : null,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: scheme.onSurface,
+                    fontSize: 17,
+                    fontWeight: done ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Divider(color: scheme.outline.withValues(alpha: 0.18), height: 1),
+        ],
+      ),
     );
   }
 }
