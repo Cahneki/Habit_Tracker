@@ -6,6 +6,7 @@ import 'features/battles/battle_rewards_repository.dart';
 import 'features/battles/battles_page.dart';
 import 'features/habits/habit_repository.dart';
 import 'features/habits/habits_manage_page.dart';
+import 'features/onboarding/onboarding_flow.dart';
 import 'features/settings/settings_page.dart';
 import 'features/settings/settings_repository.dart';
 import 'features/today/today_page.dart';
@@ -27,6 +28,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  static const Duration _splashMinDuration = Duration(milliseconds: 1400);
+
   late final AppDb db;
   late final bool _ownsDb;
   late final HabitRepository repo;
@@ -34,7 +37,8 @@ class _MyAppState extends State<MyApp> {
   late final AvatarRepository avatarRepo;
   late final BattleRewardsRepository battleRewardsRepo;
   late final AudioService audio;
-  late Future<UserSetting> _settingsFuture;
+  late final Future<void> _startupFuture;
+  UserSetting? _settings;
 
   @override
   void initState() {
@@ -51,7 +55,28 @@ class _MyAppState extends State<MyApp> {
     avatarRepo = AvatarRepository(db);
     battleRewardsRepo = BattleRewardsRepository(db);
     audio = AudioService(settingsRepo);
-    _settingsFuture = settingsRepo.getSettings();
+    _startupFuture = _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    final start = DateTime.now();
+    _settings = await settingsRepo.getSettings();
+    if (mounted) {
+      setState(() {});
+    }
+    final elapsed = DateTime.now().difference(start);
+    if (elapsed < _splashMinDuration) {
+      await Future<void>.delayed(_splashMinDuration - elapsed);
+    }
+  }
+
+  void _refreshThemeFromSettings() {
+    settingsRepo.getSettings().then((next) {
+      if (!mounted) return;
+      setState(() {
+        _settings = next;
+      });
+    });
   }
 
   @override
@@ -64,27 +89,93 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<UserSetting>(
-      future: _settingsFuture,
-      builder: (context, snap) {
-        final themeId = snap.data?.themeId ?? 'forest';
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.themeForId(themeId),
-          home: HomeScaffold(
+    final themeId = _settings?.themeId ?? 'light';
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.themeForId(themeId),
+      home: FutureBuilder<void>(
+        future: _startupFuture,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const _StartupSplashScreen();
+          }
+          if (_settings?.onboardingCompleted != true) {
+            return OnboardingFlow(
+              repo: repo,
+              settingsRepo: settingsRepo,
+              onCompleted: _refreshThemeFromSettings,
+            );
+          }
+          return HomeScaffold(
             repo: repo,
             settingsRepo: settingsRepo,
             avatarRepo: avatarRepo,
             battleRewardsRepo: battleRewardsRepo,
             audio: audio,
-            onThemeChanged: () {
-              setState(() {
-                _settingsFuture = settingsRepo.getSettings();
-              });
-            },
+            onThemeChanged: _refreshThemeFromSettings,
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _StartupSplashScreen extends StatelessWidget {
+  const _StartupSplashScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [scheme.surfaceContainerLowest, scheme.surface],
           ),
-        );
-      },
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: scheme.primary.withValues(alpha: 0.14),
+                  border: Border.all(
+                    color: scheme.primary.withValues(alpha: 0.45),
+                    width: 2,
+                  ),
+                ),
+                child: Icon(
+                  Icons.shield_rounded,
+                  color: scheme.primary,
+                  size: 44,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Habit Tracker',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: 132,
+                child: LinearProgressIndicator(
+                  minHeight: 4,
+                  borderRadius: BorderRadius.circular(8),
+                  backgroundColor: scheme.surfaceContainerHigh,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -167,6 +258,7 @@ class _HomeScaffoldState extends State<HomeScaffold> {
       SettingsPage(
         settingsRepo: widget.settingsRepo,
         audio: widget.audio,
+        habitRepo: widget.repo,
         avatarRepo: widget.avatarRepo,
         dataVersion: _dataVersion,
         onDataChanged: () {

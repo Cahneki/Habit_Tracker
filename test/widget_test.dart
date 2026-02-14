@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 
 import 'package:habit_tracker/db/app_db.dart';
@@ -16,6 +17,15 @@ void main() {
   testWidgets('App boots to shell', (WidgetTester tester) async {
     final db = AppDb.test(NativeDatabase.memory());
     addTearDown(db.close);
+    await db
+        .into(db.userSettings)
+        .insert(
+          const UserSettingsCompanion(
+            id: Value(1),
+            onboardingCompleted: Value(true),
+            themeId: Value('light'),
+          ),
+        );
 
     await tester.pumpWidget(MyApp(db: db));
     await tester.pumpAndSettle();

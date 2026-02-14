@@ -22,7 +22,7 @@ class SettingsRepository {
     await db
         .into(db.userSettings)
         .insert(
-          const UserSettingsCompanion(id: Value(1)),
+          const UserSettingsCompanion(id: Value(1), themeId: Value('light')),
           mode: InsertMode.insertOrIgnore,
         );
 
@@ -142,6 +142,58 @@ class SettingsRepository {
           UserSettingsCompanion(
             id: const Value(1),
             profileAvatarPath: Value(path),
+          ),
+        );
+  }
+
+  Future<void> setOnboardingCompleted(bool value) async {
+    await db
+        .into(db.userSettings)
+        .insertOnConflictUpdate(
+          UserSettingsCompanion(
+            id: const Value(1),
+            onboardingCompleted: Value(value),
+          ),
+        );
+  }
+
+  Future<void> setExperienceLevel(String value) async {
+    await db
+        .into(db.userSettings)
+        .insertOnConflictUpdate(
+          UserSettingsCompanion(
+            id: const Value(1),
+            experienceLevel: Value(value),
+          ),
+        );
+  }
+
+  Future<void> setFocusTags(List<String> tags) async {
+    await db
+        .into(db.userSettings)
+        .insertOnConflictUpdate(
+          UserSettingsCompanion(
+            id: const Value(1),
+            focusTags: Value(tags.join(',')),
+          ),
+        );
+  }
+
+  Future<void> setArchetype(String value) async {
+    await db
+        .into(db.userSettings)
+        .insertOnConflictUpdate(
+          UserSettingsCompanion(id: const Value(1), archetype: Value(value)),
+        );
+  }
+
+  Future<void> setStarterHabitsSeeded(bool value) async {
+    await db
+        .into(db.userSettings)
+        .insertOnConflictUpdate(
+          UserSettingsCompanion(
+            id: const Value(1),
+            starterHabitsSeeded: Value(value),
           ),
         );
   }

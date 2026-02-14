@@ -94,7 +94,9 @@ class _BattlesPageState extends State<BattlesPage> {
   }) {
     final scheme = Theme.of(context).colorScheme;
     final hasSchedule = stats.scheduledTotal > 0 && stats.hp > 0;
-    final percent = (stats.progressPct * 100).round();
+    final remainingHp = (stats.hp - stats.damage).clamp(0, stats.hp);
+    final remainingPct = stats.hp == 0 ? 0.0 : (remainingHp / stats.hp);
+    final percent = (remainingPct * 100).round();
     final densityPct = (stats.density * 100).round();
     final xpBonus = (stats.earnedXpWindow * bonusPct).round();
     const epsilon = 1e-9;
@@ -124,14 +126,14 @@ class _BattlesPageState extends State<BattlesPage> {
               ),
             ] else ...[
               Text(
-                'Damage ${stats.damage} / ${stats.hp}',
+                'HP $remainingHp / ${stats.hp}',
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 6),
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: LinearProgressIndicator(
-                  value: stats.progressPct,
+                  value: remainingPct,
                   minHeight: 10,
                   backgroundColor: scheme.surface,
                   color: scheme.primary,
@@ -140,7 +142,7 @@ class _BattlesPageState extends State<BattlesPage> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Text('$percent% complete'),
+                  Text('$percent% HP remaining'),
                   const Spacer(),
                   Text(
                     'Density: $densityPct% (${stats.completedTotal}/${stats.scheduledTotal})',

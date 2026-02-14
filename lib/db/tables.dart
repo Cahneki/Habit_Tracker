@@ -6,9 +6,9 @@ class Habits extends Table {
   IntColumn get baseXp => integer().withDefault(const Constant(20))();
   IntColumn get createdAt => integer()(); // epoch ms
   IntColumn get archivedAt => integer().nullable()(); // epoch ms
-  IntColumn get scheduleMask => integer().nullable()(); // bitmask: 0=Mon .. 6=Sun
-  TextColumn get timeOfDay =>
-      text().withDefault(const Constant('morning'))();
+  IntColumn get scheduleMask =>
+      integer().nullable()(); // bitmask: 0=Mon .. 6=Sun
+  TextColumn get timeOfDay => text().withDefault(const Constant('morning'))();
   TextColumn get iconId => text().withDefault(const Constant('magic'))();
   TextColumn get iconPath => text().withDefault(const Constant(''))();
 
@@ -27,8 +27,8 @@ class HabitCompletions extends Table {
 
   @override
   List<Set<Column>> get uniqueKeys => [
-        {habitId, localDay}, // prevents double completion per day
-      ];
+    {habitId, localDay}, // prevents double completion per day
+  ];
 }
 
 class UserSettings extends Table {
@@ -39,19 +39,21 @@ class UserSettings extends Table {
       text().withDefault(const Constant('complete'))();
   TextColumn get soundLevelUpId =>
       text().withDefault(const Constant('level_up'))();
-  TextColumn get soundEquipId =>
-      text().withDefault(const Constant('equip'))();
-  TextColumn get soundCompletePath =>
-      text().withDefault(const Constant(''))();
-  TextColumn get soundLevelUpPath =>
-      text().withDefault(const Constant(''))();
-  TextColumn get soundEquipPath =>
-      text().withDefault(const Constant(''))();
+  TextColumn get soundEquipId => text().withDefault(const Constant('equip'))();
+  TextColumn get soundCompletePath => text().withDefault(const Constant(''))();
+  TextColumn get soundLevelUpPath => text().withDefault(const Constant(''))();
+  TextColumn get soundEquipPath => text().withDefault(const Constant(''))();
   TextColumn get themeId => text().withDefault(const Constant('forest'))();
   TextColumn get profileAvatarMode =>
       text().withDefault(const Constant('character'))();
-  TextColumn get profileAvatarPath =>
-      text().withDefault(const Constant(''))();
+  TextColumn get profileAvatarPath => text().withDefault(const Constant(''))();
+  BoolColumn get onboardingCompleted =>
+      boolean().withDefault(const Constant(false))();
+  TextColumn get experienceLevel => text().withDefault(const Constant(''))();
+  TextColumn get focusTags => text().withDefault(const Constant(''))();
+  TextColumn get archetype => text().withDefault(const Constant(''))();
+  BoolColumn get starterHabitsSeeded =>
+      boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -75,7 +77,8 @@ class BattleRewardsClaimed extends Table {
 }
 
 class XpEvents extends Table {
-  TextColumn get eventId => text()(); // deterministic id (battle_id + milestone)
+  TextColumn get eventId =>
+      text()(); // deterministic id (battle_id + milestone)
   TextColumn get source => text()(); // e.g. battle
   TextColumn get battleId => text()(); // week_YYYY-MM-DD or month_YYYY-MM
   IntColumn get amount => integer()(); // positive XP

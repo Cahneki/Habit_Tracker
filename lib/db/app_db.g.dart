@@ -1033,6 +1033,70 @@ class $UserSettingsTable extends UserSettings
         requiredDuringInsert: false,
         defaultValue: const Constant(''),
       );
+  static const VerificationMeta _onboardingCompletedMeta =
+      const VerificationMeta('onboardingCompleted');
+  @override
+  late final GeneratedColumn<bool> onboardingCompleted = GeneratedColumn<bool>(
+    'onboarding_completed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("onboarding_completed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _experienceLevelMeta = const VerificationMeta(
+    'experienceLevel',
+  );
+  @override
+  late final GeneratedColumn<String> experienceLevel = GeneratedColumn<String>(
+    'experience_level',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _focusTagsMeta = const VerificationMeta(
+    'focusTags',
+  );
+  @override
+  late final GeneratedColumn<String> focusTags = GeneratedColumn<String>(
+    'focus_tags',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _archetypeMeta = const VerificationMeta(
+    'archetype',
+  );
+  @override
+  late final GeneratedColumn<String> archetype = GeneratedColumn<String>(
+    'archetype',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _starterHabitsSeededMeta =
+      const VerificationMeta('starterHabitsSeeded');
+  @override
+  late final GeneratedColumn<bool> starterHabitsSeeded = GeneratedColumn<bool>(
+    'starter_habits_seeded',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("starter_habits_seeded" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1047,6 +1111,11 @@ class $UserSettingsTable extends UserSettings
     themeId,
     profileAvatarMode,
     profileAvatarPath,
+    onboardingCompleted,
+    experienceLevel,
+    focusTags,
+    archetype,
+    starterHabitsSeeded,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1159,6 +1228,45 @@ class $UserSettingsTable extends UserSettings
         ),
       );
     }
+    if (data.containsKey('onboarding_completed')) {
+      context.handle(
+        _onboardingCompletedMeta,
+        onboardingCompleted.isAcceptableOrUnknown(
+          data['onboarding_completed']!,
+          _onboardingCompletedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('experience_level')) {
+      context.handle(
+        _experienceLevelMeta,
+        experienceLevel.isAcceptableOrUnknown(
+          data['experience_level']!,
+          _experienceLevelMeta,
+        ),
+      );
+    }
+    if (data.containsKey('focus_tags')) {
+      context.handle(
+        _focusTagsMeta,
+        focusTags.isAcceptableOrUnknown(data['focus_tags']!, _focusTagsMeta),
+      );
+    }
+    if (data.containsKey('archetype')) {
+      context.handle(
+        _archetypeMeta,
+        archetype.isAcceptableOrUnknown(data['archetype']!, _archetypeMeta),
+      );
+    }
+    if (data.containsKey('starter_habits_seeded')) {
+      context.handle(
+        _starterHabitsSeededMeta,
+        starterHabitsSeeded.isAcceptableOrUnknown(
+          data['starter_habits_seeded']!,
+          _starterHabitsSeededMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1216,6 +1324,26 @@ class $UserSettingsTable extends UserSettings
         DriftSqlType.string,
         data['${effectivePrefix}profile_avatar_path'],
       )!,
+      onboardingCompleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}onboarding_completed'],
+      )!,
+      experienceLevel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}experience_level'],
+      )!,
+      focusTags: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}focus_tags'],
+      )!,
+      archetype: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}archetype'],
+      )!,
+      starterHabitsSeeded: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}starter_habits_seeded'],
+      )!,
     );
   }
 
@@ -1238,6 +1366,11 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
   final String themeId;
   final String profileAvatarMode;
   final String profileAvatarPath;
+  final bool onboardingCompleted;
+  final String experienceLevel;
+  final String focusTags;
+  final String archetype;
+  final bool starterHabitsSeeded;
   const UserSetting({
     required this.id,
     required this.soundEnabled,
@@ -1251,6 +1384,11 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     required this.themeId,
     required this.profileAvatarMode,
     required this.profileAvatarPath,
+    required this.onboardingCompleted,
+    required this.experienceLevel,
+    required this.focusTags,
+    required this.archetype,
+    required this.starterHabitsSeeded,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1267,6 +1405,11 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     map['theme_id'] = Variable<String>(themeId);
     map['profile_avatar_mode'] = Variable<String>(profileAvatarMode);
     map['profile_avatar_path'] = Variable<String>(profileAvatarPath);
+    map['onboarding_completed'] = Variable<bool>(onboardingCompleted);
+    map['experience_level'] = Variable<String>(experienceLevel);
+    map['focus_tags'] = Variable<String>(focusTags);
+    map['archetype'] = Variable<String>(archetype);
+    map['starter_habits_seeded'] = Variable<bool>(starterHabitsSeeded);
     return map;
   }
 
@@ -1284,6 +1427,11 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       themeId: Value(themeId),
       profileAvatarMode: Value(profileAvatarMode),
       profileAvatarPath: Value(profileAvatarPath),
+      onboardingCompleted: Value(onboardingCompleted),
+      experienceLevel: Value(experienceLevel),
+      focusTags: Value(focusTags),
+      archetype: Value(archetype),
+      starterHabitsSeeded: Value(starterHabitsSeeded),
     );
   }
 
@@ -1305,6 +1453,15 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       themeId: serializer.fromJson<String>(json['themeId']),
       profileAvatarMode: serializer.fromJson<String>(json['profileAvatarMode']),
       profileAvatarPath: serializer.fromJson<String>(json['profileAvatarPath']),
+      onboardingCompleted: serializer.fromJson<bool>(
+        json['onboardingCompleted'],
+      ),
+      experienceLevel: serializer.fromJson<String>(json['experienceLevel']),
+      focusTags: serializer.fromJson<String>(json['focusTags']),
+      archetype: serializer.fromJson<String>(json['archetype']),
+      starterHabitsSeeded: serializer.fromJson<bool>(
+        json['starterHabitsSeeded'],
+      ),
     );
   }
   @override
@@ -1323,6 +1480,11 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       'themeId': serializer.toJson<String>(themeId),
       'profileAvatarMode': serializer.toJson<String>(profileAvatarMode),
       'profileAvatarPath': serializer.toJson<String>(profileAvatarPath),
+      'onboardingCompleted': serializer.toJson<bool>(onboardingCompleted),
+      'experienceLevel': serializer.toJson<String>(experienceLevel),
+      'focusTags': serializer.toJson<String>(focusTags),
+      'archetype': serializer.toJson<String>(archetype),
+      'starterHabitsSeeded': serializer.toJson<bool>(starterHabitsSeeded),
     };
   }
 
@@ -1339,6 +1501,11 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     String? themeId,
     String? profileAvatarMode,
     String? profileAvatarPath,
+    bool? onboardingCompleted,
+    String? experienceLevel,
+    String? focusTags,
+    String? archetype,
+    bool? starterHabitsSeeded,
   }) => UserSetting(
     id: id ?? this.id,
     soundEnabled: soundEnabled ?? this.soundEnabled,
@@ -1352,6 +1519,11 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     themeId: themeId ?? this.themeId,
     profileAvatarMode: profileAvatarMode ?? this.profileAvatarMode,
     profileAvatarPath: profileAvatarPath ?? this.profileAvatarPath,
+    onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
+    experienceLevel: experienceLevel ?? this.experienceLevel,
+    focusTags: focusTags ?? this.focusTags,
+    archetype: archetype ?? this.archetype,
+    starterHabitsSeeded: starterHabitsSeeded ?? this.starterHabitsSeeded,
   );
   UserSetting copyWithCompanion(UserSettingsCompanion data) {
     return UserSetting(
@@ -1387,6 +1559,17 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       profileAvatarPath: data.profileAvatarPath.present
           ? data.profileAvatarPath.value
           : this.profileAvatarPath,
+      onboardingCompleted: data.onboardingCompleted.present
+          ? data.onboardingCompleted.value
+          : this.onboardingCompleted,
+      experienceLevel: data.experienceLevel.present
+          ? data.experienceLevel.value
+          : this.experienceLevel,
+      focusTags: data.focusTags.present ? data.focusTags.value : this.focusTags,
+      archetype: data.archetype.present ? data.archetype.value : this.archetype,
+      starterHabitsSeeded: data.starterHabitsSeeded.present
+          ? data.starterHabitsSeeded.value
+          : this.starterHabitsSeeded,
     );
   }
 
@@ -1404,7 +1587,12 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
           ..write('soundEquipPath: $soundEquipPath, ')
           ..write('themeId: $themeId, ')
           ..write('profileAvatarMode: $profileAvatarMode, ')
-          ..write('profileAvatarPath: $profileAvatarPath')
+          ..write('profileAvatarPath: $profileAvatarPath, ')
+          ..write('onboardingCompleted: $onboardingCompleted, ')
+          ..write('experienceLevel: $experienceLevel, ')
+          ..write('focusTags: $focusTags, ')
+          ..write('archetype: $archetype, ')
+          ..write('starterHabitsSeeded: $starterHabitsSeeded')
           ..write(')'))
         .toString();
   }
@@ -1423,6 +1611,11 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     themeId,
     profileAvatarMode,
     profileAvatarPath,
+    onboardingCompleted,
+    experienceLevel,
+    focusTags,
+    archetype,
+    starterHabitsSeeded,
   );
   @override
   bool operator ==(Object other) =>
@@ -1439,7 +1632,12 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
           other.soundEquipPath == this.soundEquipPath &&
           other.themeId == this.themeId &&
           other.profileAvatarMode == this.profileAvatarMode &&
-          other.profileAvatarPath == this.profileAvatarPath);
+          other.profileAvatarPath == this.profileAvatarPath &&
+          other.onboardingCompleted == this.onboardingCompleted &&
+          other.experienceLevel == this.experienceLevel &&
+          other.focusTags == this.focusTags &&
+          other.archetype == this.archetype &&
+          other.starterHabitsSeeded == this.starterHabitsSeeded);
 }
 
 class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
@@ -1455,6 +1653,11 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
   final Value<String> themeId;
   final Value<String> profileAvatarMode;
   final Value<String> profileAvatarPath;
+  final Value<bool> onboardingCompleted;
+  final Value<String> experienceLevel;
+  final Value<String> focusTags;
+  final Value<String> archetype;
+  final Value<bool> starterHabitsSeeded;
   const UserSettingsCompanion({
     this.id = const Value.absent(),
     this.soundEnabled = const Value.absent(),
@@ -1468,6 +1671,11 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     this.themeId = const Value.absent(),
     this.profileAvatarMode = const Value.absent(),
     this.profileAvatarPath = const Value.absent(),
+    this.onboardingCompleted = const Value.absent(),
+    this.experienceLevel = const Value.absent(),
+    this.focusTags = const Value.absent(),
+    this.archetype = const Value.absent(),
+    this.starterHabitsSeeded = const Value.absent(),
   });
   UserSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -1482,6 +1690,11 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     this.themeId = const Value.absent(),
     this.profileAvatarMode = const Value.absent(),
     this.profileAvatarPath = const Value.absent(),
+    this.onboardingCompleted = const Value.absent(),
+    this.experienceLevel = const Value.absent(),
+    this.focusTags = const Value.absent(),
+    this.archetype = const Value.absent(),
+    this.starterHabitsSeeded = const Value.absent(),
   });
   static Insertable<UserSetting> custom({
     Expression<int>? id,
@@ -1496,6 +1709,11 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     Expression<String>? themeId,
     Expression<String>? profileAvatarMode,
     Expression<String>? profileAvatarPath,
+    Expression<bool>? onboardingCompleted,
+    Expression<String>? experienceLevel,
+    Expression<String>? focusTags,
+    Expression<String>? archetype,
+    Expression<bool>? starterHabitsSeeded,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1510,6 +1728,13 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
       if (themeId != null) 'theme_id': themeId,
       if (profileAvatarMode != null) 'profile_avatar_mode': profileAvatarMode,
       if (profileAvatarPath != null) 'profile_avatar_path': profileAvatarPath,
+      if (onboardingCompleted != null)
+        'onboarding_completed': onboardingCompleted,
+      if (experienceLevel != null) 'experience_level': experienceLevel,
+      if (focusTags != null) 'focus_tags': focusTags,
+      if (archetype != null) 'archetype': archetype,
+      if (starterHabitsSeeded != null)
+        'starter_habits_seeded': starterHabitsSeeded,
     });
   }
 
@@ -1526,6 +1751,11 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     Value<String>? themeId,
     Value<String>? profileAvatarMode,
     Value<String>? profileAvatarPath,
+    Value<bool>? onboardingCompleted,
+    Value<String>? experienceLevel,
+    Value<String>? focusTags,
+    Value<String>? archetype,
+    Value<bool>? starterHabitsSeeded,
   }) {
     return UserSettingsCompanion(
       id: id ?? this.id,
@@ -1540,6 +1770,11 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
       themeId: themeId ?? this.themeId,
       profileAvatarMode: profileAvatarMode ?? this.profileAvatarMode,
       profileAvatarPath: profileAvatarPath ?? this.profileAvatarPath,
+      onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
+      experienceLevel: experienceLevel ?? this.experienceLevel,
+      focusTags: focusTags ?? this.focusTags,
+      archetype: archetype ?? this.archetype,
+      starterHabitsSeeded: starterHabitsSeeded ?? this.starterHabitsSeeded,
     );
   }
 
@@ -1582,6 +1817,21 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     if (profileAvatarPath.present) {
       map['profile_avatar_path'] = Variable<String>(profileAvatarPath.value);
     }
+    if (onboardingCompleted.present) {
+      map['onboarding_completed'] = Variable<bool>(onboardingCompleted.value);
+    }
+    if (experienceLevel.present) {
+      map['experience_level'] = Variable<String>(experienceLevel.value);
+    }
+    if (focusTags.present) {
+      map['focus_tags'] = Variable<String>(focusTags.value);
+    }
+    if (archetype.present) {
+      map['archetype'] = Variable<String>(archetype.value);
+    }
+    if (starterHabitsSeeded.present) {
+      map['starter_habits_seeded'] = Variable<bool>(starterHabitsSeeded.value);
+    }
     return map;
   }
 
@@ -1599,7 +1849,12 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
           ..write('soundEquipPath: $soundEquipPath, ')
           ..write('themeId: $themeId, ')
           ..write('profileAvatarMode: $profileAvatarMode, ')
-          ..write('profileAvatarPath: $profileAvatarPath')
+          ..write('profileAvatarPath: $profileAvatarPath, ')
+          ..write('onboardingCompleted: $onboardingCompleted, ')
+          ..write('experienceLevel: $experienceLevel, ')
+          ..write('focusTags: $focusTags, ')
+          ..write('archetype: $archetype, ')
+          ..write('starterHabitsSeeded: $starterHabitsSeeded')
           ..write(')'))
         .toString();
   }
@@ -3189,6 +3444,11 @@ typedef $$UserSettingsTableCreateCompanionBuilder =
       Value<String> themeId,
       Value<String> profileAvatarMode,
       Value<String> profileAvatarPath,
+      Value<bool> onboardingCompleted,
+      Value<String> experienceLevel,
+      Value<String> focusTags,
+      Value<String> archetype,
+      Value<bool> starterHabitsSeeded,
     });
 typedef $$UserSettingsTableUpdateCompanionBuilder =
     UserSettingsCompanion Function({
@@ -3204,6 +3464,11 @@ typedef $$UserSettingsTableUpdateCompanionBuilder =
       Value<String> themeId,
       Value<String> profileAvatarMode,
       Value<String> profileAvatarPath,
+      Value<bool> onboardingCompleted,
+      Value<String> experienceLevel,
+      Value<String> focusTags,
+      Value<String> archetype,
+      Value<bool> starterHabitsSeeded,
     });
 
 class $$UserSettingsTableFilterComposer
@@ -3272,6 +3537,31 @@ class $$UserSettingsTableFilterComposer
 
   ColumnFilters<String> get profileAvatarPath => $composableBuilder(
     column: $table.profileAvatarPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get onboardingCompleted => $composableBuilder(
+    column: $table.onboardingCompleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get experienceLevel => $composableBuilder(
+    column: $table.experienceLevel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get focusTags => $composableBuilder(
+    column: $table.focusTags,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get archetype => $composableBuilder(
+    column: $table.archetype,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get starterHabitsSeeded => $composableBuilder(
+    column: $table.starterHabitsSeeded,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3344,6 +3634,31 @@ class $$UserSettingsTableOrderingComposer
     column: $table.profileAvatarPath,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get onboardingCompleted => $composableBuilder(
+    column: $table.onboardingCompleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get experienceLevel => $composableBuilder(
+    column: $table.experienceLevel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get focusTags => $composableBuilder(
+    column: $table.focusTags,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get archetype => $composableBuilder(
+    column: $table.archetype,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get starterHabitsSeeded => $composableBuilder(
+    column: $table.starterHabitsSeeded,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$UserSettingsTableAnnotationComposer
@@ -3410,6 +3725,27 @@ class $$UserSettingsTableAnnotationComposer
     column: $table.profileAvatarPath,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get onboardingCompleted => $composableBuilder(
+    column: $table.onboardingCompleted,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get experienceLevel => $composableBuilder(
+    column: $table.experienceLevel,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get focusTags =>
+      $composableBuilder(column: $table.focusTags, builder: (column) => column);
+
+  GeneratedColumn<String> get archetype =>
+      $composableBuilder(column: $table.archetype, builder: (column) => column);
+
+  GeneratedColumn<bool> get starterHabitsSeeded => $composableBuilder(
+    column: $table.starterHabitsSeeded,
+    builder: (column) => column,
+  );
 }
 
 class $$UserSettingsTableTableManager
@@ -3455,6 +3791,11 @@ class $$UserSettingsTableTableManager
                 Value<String> themeId = const Value.absent(),
                 Value<String> profileAvatarMode = const Value.absent(),
                 Value<String> profileAvatarPath = const Value.absent(),
+                Value<bool> onboardingCompleted = const Value.absent(),
+                Value<String> experienceLevel = const Value.absent(),
+                Value<String> focusTags = const Value.absent(),
+                Value<String> archetype = const Value.absent(),
+                Value<bool> starterHabitsSeeded = const Value.absent(),
               }) => UserSettingsCompanion(
                 id: id,
                 soundEnabled: soundEnabled,
@@ -3468,6 +3809,11 @@ class $$UserSettingsTableTableManager
                 themeId: themeId,
                 profileAvatarMode: profileAvatarMode,
                 profileAvatarPath: profileAvatarPath,
+                onboardingCompleted: onboardingCompleted,
+                experienceLevel: experienceLevel,
+                focusTags: focusTags,
+                archetype: archetype,
+                starterHabitsSeeded: starterHabitsSeeded,
               ),
           createCompanionCallback:
               ({
@@ -3483,6 +3829,11 @@ class $$UserSettingsTableTableManager
                 Value<String> themeId = const Value.absent(),
                 Value<String> profileAvatarMode = const Value.absent(),
                 Value<String> profileAvatarPath = const Value.absent(),
+                Value<bool> onboardingCompleted = const Value.absent(),
+                Value<String> experienceLevel = const Value.absent(),
+                Value<String> focusTags = const Value.absent(),
+                Value<String> archetype = const Value.absent(),
+                Value<bool> starterHabitsSeeded = const Value.absent(),
               }) => UserSettingsCompanion.insert(
                 id: id,
                 soundEnabled: soundEnabled,
@@ -3496,6 +3847,11 @@ class $$UserSettingsTableTableManager
                 themeId: themeId,
                 profileAvatarMode: profileAvatarMode,
                 profileAvatarPath: profileAvatarPath,
+                onboardingCompleted: onboardingCompleted,
+                experienceLevel: experienceLevel,
+                focusTags: focusTags,
+                archetype: archetype,
+                starterHabitsSeeded: starterHabitsSeeded,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

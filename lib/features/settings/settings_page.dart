@@ -1,13 +1,11 @@
-import 'dart:io';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import '../../db/app_db.dart';
 import '../../services/audio_service.dart';
 import '../../theme/app_theme.dart';
 import '../../shared/profile_avatar.dart';
 import '../avatar/avatar_repository.dart';
+import '../habits/habit_repository.dart';
+import 'profile_picture_page.dart';
 import 'settings_repository.dart';
 import 'sound_pack_page.dart';
 
@@ -16,6 +14,7 @@ class SettingsPage extends StatefulWidget {
     super.key,
     required this.settingsRepo,
     required this.audio,
+    required this.habitRepo,
     required this.avatarRepo,
     required this.dataVersion,
     required this.onDataChanged,
@@ -23,6 +22,7 @@ class SettingsPage extends StatefulWidget {
 
   final SettingsRepository settingsRepo;
   final AudioService audio;
+  final HabitRepository habitRepo;
   final AvatarRepository avatarRepo;
   final ValueNotifier<int> dataVersion;
   final VoidCallback onDataChanged;
@@ -89,30 +89,21 @@ class _SettingsPageState extends State<SettingsPage> {
     widget.onDataChanged();
   }
 
-  Future<void> _setProfileAvatarMode(String mode) async {
-    await widget.settingsRepo.setProfileAvatarMode(mode);
-    _refresh();
-    widget.onDataChanged();
-  }
-
-  Future<void> _pickProfileAvatar() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp'],
+  Future<void> _openProfilePicture() async {
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProfilePicturePage(
+          settingsRepo: widget.settingsRepo,
+          avatarRepo: widget.avatarRepo,
+          habitRepo: widget.habitRepo,
+          audio: widget.audio,
+          dataVersion: widget.dataVersion,
+          onDataChanged: widget.onDataChanged,
+        ),
+      ),
     );
-    final path = result?.files.single.path;
-    if (path == null) return;
-
-    final dir = await getApplicationDocumentsDirectory();
-    final ext = p.extension(path);
-    final targetDir = p.join(dir.path, 'profile_avatar');
-    await Directory(targetDir).create(recursive: true);
-    final targetPath = p.join(targetDir, 'profile$ext');
-    await File(path).copy(targetPath);
-    await widget.settingsRepo.setProfileAvatarPath(targetPath);
-    await widget.settingsRepo.setProfileAvatarMode('custom');
     _refresh();
-    widget.onDataChanged();
   }
 
   Future<void> _previewSound(SoundEvent event) async {
@@ -131,6 +122,32 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _redoOnboarding() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Redo onboarding?'),
+        content: const Text(
+          'This will launch onboarding again. Existing quests will stay as-is.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Redo'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    await widget.settingsRepo.setOnboardingCompleted(false);
+    widget.onDataChanged();
   }
 
   void _toggleNotifications(bool value) {
@@ -238,89 +255,53 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _profileModeToggle(String mode) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    Widget option(String label, String value) {
-      final selected = mode == value;
-      return Expanded(
-        child: InkWell(
-          onTap: () => _setProfileAvatarMode(value),
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              color: selected ? scheme.primary : scheme.surface,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Center(
-              child: Text(
-                label,
-                style: textTheme.titleSmall?.copyWith(
-                  color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: scheme.outline.withValues(alpha: 0.6)),
-      ),
-      child: Row(
-        children: [
-          option('Custom Avatar', 'custom'),
-          option('Game Character', 'character'),
-        ],
-      ),
-    );
-  }
-
   Widget _profileCard(UserSetting settings, Map<String, String> equipped) {
     final scheme = Theme.of(context).colorScheme;
-    final isCustom = settings.profileAvatarMode == 'custom';
+    final usingCustom = settings.profileAvatarMode == 'custom';
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
-        child: Column(
-          children: [
-            ProfileAvatar(
-              settings: settings,
-              equipped: equipped,
-              size: 96,
-              borderWidth: 3,
-              showEdit: true,
-              onEdit: _pickProfileAvatar,
-            ),
-            const SizedBox(height: 16),
-            _profileModeToggle(settings.profileAvatarMode),
-            if (isCustom) ...[
-              const SizedBox(height: 14),
-              SizedBox(
-                height: 44,
-                child: OutlinedButton.icon(
-                  onPressed: _pickProfileAvatar,
-                  icon: const Icon(Icons.cloud_upload_rounded),
-                  label: const Text('Upload Image'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: scheme.primary,
-                    side: BorderSide(color: scheme.primary),
-                    shape: const StadiumBorder(),
-                    textStyle: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: _openProfilePicture,
+          child: Row(
+            children: [
+              ProfileAvatar(
+                settings: settings,
+                equipped: equipped,
+                size: 72,
+                borderWidth: 2.5,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Profile Picture',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      usingCustom ? 'Custom Photo' : 'My Avatar',
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: scheme.onSurfaceVariant,
+              ),
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -400,27 +381,6 @@ class _SettingsPageState extends State<SettingsPage> {
               ...[trailing].whereType<Widget>(),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _statusPill(BuildContext context, String label) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: scheme.primary.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.primary.withValues(alpha: 0.5)),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: textTheme.labelSmall?.copyWith(
-          color: scheme.primary,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1.2,
         ),
       ),
     );
@@ -724,28 +684,22 @@ class _SettingsPageState extends State<SettingsPage> {
               context: context,
               icon: Icons.cloud_rounded,
               title: 'Cloud Sync',
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _statusPill(context, 'Active'),
-                  const SizedBox(width: 6),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ],
+              trailing: _valueTrailing(
+                context,
+                'Coming soon',
+                showChevron: false,
               ),
-              onTap: () {},
+              enabled: false,
             ),
             _settingsRow(
               context: context,
-              icon: Icons.star_rounded,
-              title: 'Hero Plus',
+              icon: Icons.restart_alt_rounded,
+              title: 'Redo Onboarding',
               trailing: Icon(
                 Icons.chevron_right_rounded,
                 color: scheme.onSurfaceVariant,
               ),
-              onTap: () {},
+              onTap: _redoOnboarding,
             ),
             _settingsRow(
               context: context,
