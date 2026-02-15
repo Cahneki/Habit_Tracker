@@ -150,6 +150,37 @@ class _SettingsPageState extends State<SettingsPage> {
     widget.onDataChanged();
   }
 
+  Future<void> _deleteAllData() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete all data?'),
+        content: const Text(
+          'This will permanently remove all quests, progress, actions, battles, and settings on this device.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete all'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    await widget.settingsRepo.deleteAllData();
+    if (!mounted) return;
+    _refresh();
+    widget.onDataChanged();
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('All data deleted.')));
+  }
+
   void _toggleNotifications(bool value) {
     setState(() => _notificationsEnabled = value);
   }
@@ -296,10 +327,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: scheme.onSurfaceVariant,
-              ),
+              Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
             ],
           ),
         ),
@@ -703,10 +731,11 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             _settingsRow(
               context: context,
-              icon: Icons.logout_rounded,
-              title: 'Logout',
+              icon: Icons.delete_forever_rounded,
+              title: 'Delete All Data',
               destructive: true,
-              onTap: () {},
+              trailing: Icon(Icons.chevron_right_rounded, color: scheme.error),
+              onTap: _deleteAllData,
             ),
           ];
 

@@ -21,6 +21,10 @@ class HabitCompletions extends Table {
   TextColumn get habitId => text().references(Habits, #id)();
   IntColumn get completedAt => integer()(); // epoch ms
   TextColumn get localDay => text()(); // YYYY-MM-DD
+  TextColumn get actionType => text().withDefault(
+    const Constant('attack'),
+  )(); // attack/charge/guard/loot
+  BoolColumn get lootSuccess => boolean().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -47,6 +51,8 @@ class UserSettings extends Table {
   TextColumn get profileAvatarMode =>
       text().withDefault(const Constant('character'))();
   TextColumn get profileAvatarPath => text().withDefault(const Constant(''))();
+  TextColumn get profileName =>
+      text().withDefault(const Constant('Adventurer'))();
   BoolColumn get onboardingCompleted =>
       boolean().withDefault(const Constant(false))();
   TextColumn get experienceLevel => text().withDefault(const Constant(''))();
@@ -57,6 +63,24 @@ class UserSettings extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
+}
+
+class DailyIntents extends Table {
+  TextColumn get dateKey => text()(); // YYYY-MM-DD local date
+  TextColumn get intent => text()(); // power/growth/safety/loot
+  IntColumn get selectedAt => integer()(); // epoch ms local timestamp
+
+  @override
+  Set<Column> get primaryKey => {dateKey};
+}
+
+class DailyFreeActions extends Table {
+  TextColumn get dateKey => text()(); // YYYY-MM-DD local date
+  TextColumn get actionType => text()(); // scout/train/prepare
+  IntColumn get performedAt => integer()(); // epoch ms local timestamp
+
+  @override
+  Set<Column> get primaryKey => {dateKey, actionType};
 }
 
 class EquippedCosmetics extends Table {

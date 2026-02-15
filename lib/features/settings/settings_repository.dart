@@ -146,6 +146,14 @@ class SettingsRepository {
         );
   }
 
+  Future<void> setProfileName(String value) async {
+    await db
+        .into(db.userSettings)
+        .insertOnConflictUpdate(
+          UserSettingsCompanion(id: const Value(1), profileName: Value(value)),
+        );
+  }
+
   Future<void> setOnboardingCompleted(bool value) async {
     await db
         .into(db.userSettings)
@@ -196,5 +204,19 @@ class SettingsRepository {
             starterHabitsSeeded: Value(value),
           ),
         );
+  }
+
+  Future<void> deleteAllData() async {
+    await db.transaction(() async {
+      await db.delete(db.habitCompletions).go();
+      await db.delete(db.habits).go();
+      await db.delete(db.dailyIntents).go();
+      await db.delete(db.dailyFreeActions).go();
+      await db.delete(db.equippedCosmetics).go();
+      await db.delete(db.battleRewardsClaimed).go();
+      await db.delete(db.xpEvents).go();
+      await db.delete(db.userSettings).go();
+    });
+    await getSettings();
   }
 }

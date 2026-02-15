@@ -608,8 +608,41 @@ class $HabitCompletionsTable extends HabitCompletions
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _actionTypeMeta = const VerificationMeta(
+    'actionType',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, habitId, completedAt, localDay];
+  late final GeneratedColumn<String> actionType = GeneratedColumn<String>(
+    'action_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('attack'),
+  );
+  static const VerificationMeta _lootSuccessMeta = const VerificationMeta(
+    'lootSuccess',
+  );
+  @override
+  late final GeneratedColumn<bool> lootSuccess = GeneratedColumn<bool>(
+    'loot_success',
+    aliasedName,
+    true,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("loot_success" IN (0, 1))',
+    ),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    habitId,
+    completedAt,
+    localDay,
+    actionType,
+    lootSuccess,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -654,6 +687,21 @@ class $HabitCompletionsTable extends HabitCompletions
     } else if (isInserting) {
       context.missing(_localDayMeta);
     }
+    if (data.containsKey('action_type')) {
+      context.handle(
+        _actionTypeMeta,
+        actionType.isAcceptableOrUnknown(data['action_type']!, _actionTypeMeta),
+      );
+    }
+    if (data.containsKey('loot_success')) {
+      context.handle(
+        _lootSuccessMeta,
+        lootSuccess.isAcceptableOrUnknown(
+          data['loot_success']!,
+          _lootSuccessMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -683,6 +731,14 @@ class $HabitCompletionsTable extends HabitCompletions
         DriftSqlType.string,
         data['${effectivePrefix}local_day'],
       )!,
+      actionType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}action_type'],
+      )!,
+      lootSuccess: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}loot_success'],
+      ),
     );
   }
 
@@ -697,11 +753,15 @@ class HabitCompletion extends DataClass implements Insertable<HabitCompletion> {
   final String habitId;
   final int completedAt;
   final String localDay;
+  final String actionType;
+  final bool? lootSuccess;
   const HabitCompletion({
     required this.id,
     required this.habitId,
     required this.completedAt,
     required this.localDay,
+    required this.actionType,
+    this.lootSuccess,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -710,6 +770,10 @@ class HabitCompletion extends DataClass implements Insertable<HabitCompletion> {
     map['habit_id'] = Variable<String>(habitId);
     map['completed_at'] = Variable<int>(completedAt);
     map['local_day'] = Variable<String>(localDay);
+    map['action_type'] = Variable<String>(actionType);
+    if (!nullToAbsent || lootSuccess != null) {
+      map['loot_success'] = Variable<bool>(lootSuccess);
+    }
     return map;
   }
 
@@ -719,6 +783,10 @@ class HabitCompletion extends DataClass implements Insertable<HabitCompletion> {
       habitId: Value(habitId),
       completedAt: Value(completedAt),
       localDay: Value(localDay),
+      actionType: Value(actionType),
+      lootSuccess: lootSuccess == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lootSuccess),
     );
   }
 
@@ -732,6 +800,8 @@ class HabitCompletion extends DataClass implements Insertable<HabitCompletion> {
       habitId: serializer.fromJson<String>(json['habitId']),
       completedAt: serializer.fromJson<int>(json['completedAt']),
       localDay: serializer.fromJson<String>(json['localDay']),
+      actionType: serializer.fromJson<String>(json['actionType']),
+      lootSuccess: serializer.fromJson<bool?>(json['lootSuccess']),
     );
   }
   @override
@@ -742,6 +812,8 @@ class HabitCompletion extends DataClass implements Insertable<HabitCompletion> {
       'habitId': serializer.toJson<String>(habitId),
       'completedAt': serializer.toJson<int>(completedAt),
       'localDay': serializer.toJson<String>(localDay),
+      'actionType': serializer.toJson<String>(actionType),
+      'lootSuccess': serializer.toJson<bool?>(lootSuccess),
     };
   }
 
@@ -750,11 +822,15 @@ class HabitCompletion extends DataClass implements Insertable<HabitCompletion> {
     String? habitId,
     int? completedAt,
     String? localDay,
+    String? actionType,
+    Value<bool?> lootSuccess = const Value.absent(),
   }) => HabitCompletion(
     id: id ?? this.id,
     habitId: habitId ?? this.habitId,
     completedAt: completedAt ?? this.completedAt,
     localDay: localDay ?? this.localDay,
+    actionType: actionType ?? this.actionType,
+    lootSuccess: lootSuccess.present ? lootSuccess.value : this.lootSuccess,
   );
   HabitCompletion copyWithCompanion(HabitCompletionsCompanion data) {
     return HabitCompletion(
@@ -764,6 +840,12 @@ class HabitCompletion extends DataClass implements Insertable<HabitCompletion> {
           ? data.completedAt.value
           : this.completedAt,
       localDay: data.localDay.present ? data.localDay.value : this.localDay,
+      actionType: data.actionType.present
+          ? data.actionType.value
+          : this.actionType,
+      lootSuccess: data.lootSuccess.present
+          ? data.lootSuccess.value
+          : this.lootSuccess,
     );
   }
 
@@ -773,13 +855,16 @@ class HabitCompletion extends DataClass implements Insertable<HabitCompletion> {
           ..write('id: $id, ')
           ..write('habitId: $habitId, ')
           ..write('completedAt: $completedAt, ')
-          ..write('localDay: $localDay')
+          ..write('localDay: $localDay, ')
+          ..write('actionType: $actionType, ')
+          ..write('lootSuccess: $lootSuccess')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, habitId, completedAt, localDay);
+  int get hashCode =>
+      Object.hash(id, habitId, completedAt, localDay, actionType, lootSuccess);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -787,7 +872,9 @@ class HabitCompletion extends DataClass implements Insertable<HabitCompletion> {
           other.id == this.id &&
           other.habitId == this.habitId &&
           other.completedAt == this.completedAt &&
-          other.localDay == this.localDay);
+          other.localDay == this.localDay &&
+          other.actionType == this.actionType &&
+          other.lootSuccess == this.lootSuccess);
 }
 
 class HabitCompletionsCompanion extends UpdateCompanion<HabitCompletion> {
@@ -795,12 +882,16 @@ class HabitCompletionsCompanion extends UpdateCompanion<HabitCompletion> {
   final Value<String> habitId;
   final Value<int> completedAt;
   final Value<String> localDay;
+  final Value<String> actionType;
+  final Value<bool?> lootSuccess;
   final Value<int> rowid;
   const HabitCompletionsCompanion({
     this.id = const Value.absent(),
     this.habitId = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.localDay = const Value.absent(),
+    this.actionType = const Value.absent(),
+    this.lootSuccess = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   HabitCompletionsCompanion.insert({
@@ -808,6 +899,8 @@ class HabitCompletionsCompanion extends UpdateCompanion<HabitCompletion> {
     required String habitId,
     required int completedAt,
     required String localDay,
+    this.actionType = const Value.absent(),
+    this.lootSuccess = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        habitId = Value(habitId),
@@ -818,6 +911,8 @@ class HabitCompletionsCompanion extends UpdateCompanion<HabitCompletion> {
     Expression<String>? habitId,
     Expression<int>? completedAt,
     Expression<String>? localDay,
+    Expression<String>? actionType,
+    Expression<bool>? lootSuccess,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -825,6 +920,8 @@ class HabitCompletionsCompanion extends UpdateCompanion<HabitCompletion> {
       if (habitId != null) 'habit_id': habitId,
       if (completedAt != null) 'completed_at': completedAt,
       if (localDay != null) 'local_day': localDay,
+      if (actionType != null) 'action_type': actionType,
+      if (lootSuccess != null) 'loot_success': lootSuccess,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -834,6 +931,8 @@ class HabitCompletionsCompanion extends UpdateCompanion<HabitCompletion> {
     Value<String>? habitId,
     Value<int>? completedAt,
     Value<String>? localDay,
+    Value<String>? actionType,
+    Value<bool?>? lootSuccess,
     Value<int>? rowid,
   }) {
     return HabitCompletionsCompanion(
@@ -841,6 +940,8 @@ class HabitCompletionsCompanion extends UpdateCompanion<HabitCompletion> {
       habitId: habitId ?? this.habitId,
       completedAt: completedAt ?? this.completedAt,
       localDay: localDay ?? this.localDay,
+      actionType: actionType ?? this.actionType,
+      lootSuccess: lootSuccess ?? this.lootSuccess,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -860,6 +961,12 @@ class HabitCompletionsCompanion extends UpdateCompanion<HabitCompletion> {
     if (localDay.present) {
       map['local_day'] = Variable<String>(localDay.value);
     }
+    if (actionType.present) {
+      map['action_type'] = Variable<String>(actionType.value);
+    }
+    if (lootSuccess.present) {
+      map['loot_success'] = Variable<bool>(lootSuccess.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -873,6 +980,8 @@ class HabitCompletionsCompanion extends UpdateCompanion<HabitCompletion> {
           ..write('habitId: $habitId, ')
           ..write('completedAt: $completedAt, ')
           ..write('localDay: $localDay, ')
+          ..write('actionType: $actionType, ')
+          ..write('lootSuccess: $lootSuccess, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1033,6 +1142,18 @@ class $UserSettingsTable extends UserSettings
         requiredDuringInsert: false,
         defaultValue: const Constant(''),
       );
+  static const VerificationMeta _profileNameMeta = const VerificationMeta(
+    'profileName',
+  );
+  @override
+  late final GeneratedColumn<String> profileName = GeneratedColumn<String>(
+    'profile_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Adventurer'),
+  );
   static const VerificationMeta _onboardingCompletedMeta =
       const VerificationMeta('onboardingCompleted');
   @override
@@ -1111,6 +1232,7 @@ class $UserSettingsTable extends UserSettings
     themeId,
     profileAvatarMode,
     profileAvatarPath,
+    profileName,
     onboardingCompleted,
     experienceLevel,
     focusTags,
@@ -1228,6 +1350,15 @@ class $UserSettingsTable extends UserSettings
         ),
       );
     }
+    if (data.containsKey('profile_name')) {
+      context.handle(
+        _profileNameMeta,
+        profileName.isAcceptableOrUnknown(
+          data['profile_name']!,
+          _profileNameMeta,
+        ),
+      );
+    }
     if (data.containsKey('onboarding_completed')) {
       context.handle(
         _onboardingCompletedMeta,
@@ -1324,6 +1455,10 @@ class $UserSettingsTable extends UserSettings
         DriftSqlType.string,
         data['${effectivePrefix}profile_avatar_path'],
       )!,
+      profileName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile_name'],
+      )!,
       onboardingCompleted: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}onboarding_completed'],
@@ -1366,6 +1501,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
   final String themeId;
   final String profileAvatarMode;
   final String profileAvatarPath;
+  final String profileName;
   final bool onboardingCompleted;
   final String experienceLevel;
   final String focusTags;
@@ -1384,6 +1520,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     required this.themeId,
     required this.profileAvatarMode,
     required this.profileAvatarPath,
+    required this.profileName,
     required this.onboardingCompleted,
     required this.experienceLevel,
     required this.focusTags,
@@ -1405,6 +1542,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     map['theme_id'] = Variable<String>(themeId);
     map['profile_avatar_mode'] = Variable<String>(profileAvatarMode);
     map['profile_avatar_path'] = Variable<String>(profileAvatarPath);
+    map['profile_name'] = Variable<String>(profileName);
     map['onboarding_completed'] = Variable<bool>(onboardingCompleted);
     map['experience_level'] = Variable<String>(experienceLevel);
     map['focus_tags'] = Variable<String>(focusTags);
@@ -1427,6 +1565,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       themeId: Value(themeId),
       profileAvatarMode: Value(profileAvatarMode),
       profileAvatarPath: Value(profileAvatarPath),
+      profileName: Value(profileName),
       onboardingCompleted: Value(onboardingCompleted),
       experienceLevel: Value(experienceLevel),
       focusTags: Value(focusTags),
@@ -1453,6 +1592,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       themeId: serializer.fromJson<String>(json['themeId']),
       profileAvatarMode: serializer.fromJson<String>(json['profileAvatarMode']),
       profileAvatarPath: serializer.fromJson<String>(json['profileAvatarPath']),
+      profileName: serializer.fromJson<String>(json['profileName']),
       onboardingCompleted: serializer.fromJson<bool>(
         json['onboardingCompleted'],
       ),
@@ -1480,6 +1620,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       'themeId': serializer.toJson<String>(themeId),
       'profileAvatarMode': serializer.toJson<String>(profileAvatarMode),
       'profileAvatarPath': serializer.toJson<String>(profileAvatarPath),
+      'profileName': serializer.toJson<String>(profileName),
       'onboardingCompleted': serializer.toJson<bool>(onboardingCompleted),
       'experienceLevel': serializer.toJson<String>(experienceLevel),
       'focusTags': serializer.toJson<String>(focusTags),
@@ -1501,6 +1642,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     String? themeId,
     String? profileAvatarMode,
     String? profileAvatarPath,
+    String? profileName,
     bool? onboardingCompleted,
     String? experienceLevel,
     String? focusTags,
@@ -1519,6 +1661,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     themeId: themeId ?? this.themeId,
     profileAvatarMode: profileAvatarMode ?? this.profileAvatarMode,
     profileAvatarPath: profileAvatarPath ?? this.profileAvatarPath,
+    profileName: profileName ?? this.profileName,
     onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
     experienceLevel: experienceLevel ?? this.experienceLevel,
     focusTags: focusTags ?? this.focusTags,
@@ -1559,6 +1702,9 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
       profileAvatarPath: data.profileAvatarPath.present
           ? data.profileAvatarPath.value
           : this.profileAvatarPath,
+      profileName: data.profileName.present
+          ? data.profileName.value
+          : this.profileName,
       onboardingCompleted: data.onboardingCompleted.present
           ? data.onboardingCompleted.value
           : this.onboardingCompleted,
@@ -1588,6 +1734,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
           ..write('themeId: $themeId, ')
           ..write('profileAvatarMode: $profileAvatarMode, ')
           ..write('profileAvatarPath: $profileAvatarPath, ')
+          ..write('profileName: $profileName, ')
           ..write('onboardingCompleted: $onboardingCompleted, ')
           ..write('experienceLevel: $experienceLevel, ')
           ..write('focusTags: $focusTags, ')
@@ -1611,6 +1758,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
     themeId,
     profileAvatarMode,
     profileAvatarPath,
+    profileName,
     onboardingCompleted,
     experienceLevel,
     focusTags,
@@ -1633,6 +1781,7 @@ class UserSetting extends DataClass implements Insertable<UserSetting> {
           other.themeId == this.themeId &&
           other.profileAvatarMode == this.profileAvatarMode &&
           other.profileAvatarPath == this.profileAvatarPath &&
+          other.profileName == this.profileName &&
           other.onboardingCompleted == this.onboardingCompleted &&
           other.experienceLevel == this.experienceLevel &&
           other.focusTags == this.focusTags &&
@@ -1653,6 +1802,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
   final Value<String> themeId;
   final Value<String> profileAvatarMode;
   final Value<String> profileAvatarPath;
+  final Value<String> profileName;
   final Value<bool> onboardingCompleted;
   final Value<String> experienceLevel;
   final Value<String> focusTags;
@@ -1671,6 +1821,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     this.themeId = const Value.absent(),
     this.profileAvatarMode = const Value.absent(),
     this.profileAvatarPath = const Value.absent(),
+    this.profileName = const Value.absent(),
     this.onboardingCompleted = const Value.absent(),
     this.experienceLevel = const Value.absent(),
     this.focusTags = const Value.absent(),
@@ -1690,6 +1841,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     this.themeId = const Value.absent(),
     this.profileAvatarMode = const Value.absent(),
     this.profileAvatarPath = const Value.absent(),
+    this.profileName = const Value.absent(),
     this.onboardingCompleted = const Value.absent(),
     this.experienceLevel = const Value.absent(),
     this.focusTags = const Value.absent(),
@@ -1709,6 +1861,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     Expression<String>? themeId,
     Expression<String>? profileAvatarMode,
     Expression<String>? profileAvatarPath,
+    Expression<String>? profileName,
     Expression<bool>? onboardingCompleted,
     Expression<String>? experienceLevel,
     Expression<String>? focusTags,
@@ -1728,6 +1881,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
       if (themeId != null) 'theme_id': themeId,
       if (profileAvatarMode != null) 'profile_avatar_mode': profileAvatarMode,
       if (profileAvatarPath != null) 'profile_avatar_path': profileAvatarPath,
+      if (profileName != null) 'profile_name': profileName,
       if (onboardingCompleted != null)
         'onboarding_completed': onboardingCompleted,
       if (experienceLevel != null) 'experience_level': experienceLevel,
@@ -1751,6 +1905,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     Value<String>? themeId,
     Value<String>? profileAvatarMode,
     Value<String>? profileAvatarPath,
+    Value<String>? profileName,
     Value<bool>? onboardingCompleted,
     Value<String>? experienceLevel,
     Value<String>? focusTags,
@@ -1770,6 +1925,7 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
       themeId: themeId ?? this.themeId,
       profileAvatarMode: profileAvatarMode ?? this.profileAvatarMode,
       profileAvatarPath: profileAvatarPath ?? this.profileAvatarPath,
+      profileName: profileName ?? this.profileName,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       experienceLevel: experienceLevel ?? this.experienceLevel,
       focusTags: focusTags ?? this.focusTags,
@@ -1817,6 +1973,9 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
     if (profileAvatarPath.present) {
       map['profile_avatar_path'] = Variable<String>(profileAvatarPath.value);
     }
+    if (profileName.present) {
+      map['profile_name'] = Variable<String>(profileName.value);
+    }
     if (onboardingCompleted.present) {
       map['onboarding_completed'] = Variable<bool>(onboardingCompleted.value);
     }
@@ -1850,11 +2009,554 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
           ..write('themeId: $themeId, ')
           ..write('profileAvatarMode: $profileAvatarMode, ')
           ..write('profileAvatarPath: $profileAvatarPath, ')
+          ..write('profileName: $profileName, ')
           ..write('onboardingCompleted: $onboardingCompleted, ')
           ..write('experienceLevel: $experienceLevel, ')
           ..write('focusTags: $focusTags, ')
           ..write('archetype: $archetype, ')
           ..write('starterHabitsSeeded: $starterHabitsSeeded')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DailyIntentsTable extends DailyIntents
+    with TableInfo<$DailyIntentsTable, DailyIntent> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DailyIntentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _dateKeyMeta = const VerificationMeta(
+    'dateKey',
+  );
+  @override
+  late final GeneratedColumn<String> dateKey = GeneratedColumn<String>(
+    'date_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _intentMeta = const VerificationMeta('intent');
+  @override
+  late final GeneratedColumn<String> intent = GeneratedColumn<String>(
+    'intent',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _selectedAtMeta = const VerificationMeta(
+    'selectedAt',
+  );
+  @override
+  late final GeneratedColumn<int> selectedAt = GeneratedColumn<int>(
+    'selected_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [dateKey, intent, selectedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'daily_intents';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DailyIntent> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('date_key')) {
+      context.handle(
+        _dateKeyMeta,
+        dateKey.isAcceptableOrUnknown(data['date_key']!, _dateKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateKeyMeta);
+    }
+    if (data.containsKey('intent')) {
+      context.handle(
+        _intentMeta,
+        intent.isAcceptableOrUnknown(data['intent']!, _intentMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_intentMeta);
+    }
+    if (data.containsKey('selected_at')) {
+      context.handle(
+        _selectedAtMeta,
+        selectedAt.isAcceptableOrUnknown(data['selected_at']!, _selectedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_selectedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {dateKey};
+  @override
+  DailyIntent map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DailyIntent(
+      dateKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date_key'],
+      )!,
+      intent: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}intent'],
+      )!,
+      selectedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}selected_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DailyIntentsTable createAlias(String alias) {
+    return $DailyIntentsTable(attachedDatabase, alias);
+  }
+}
+
+class DailyIntent extends DataClass implements Insertable<DailyIntent> {
+  final String dateKey;
+  final String intent;
+  final int selectedAt;
+  const DailyIntent({
+    required this.dateKey,
+    required this.intent,
+    required this.selectedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['date_key'] = Variable<String>(dateKey);
+    map['intent'] = Variable<String>(intent);
+    map['selected_at'] = Variable<int>(selectedAt);
+    return map;
+  }
+
+  DailyIntentsCompanion toCompanion(bool nullToAbsent) {
+    return DailyIntentsCompanion(
+      dateKey: Value(dateKey),
+      intent: Value(intent),
+      selectedAt: Value(selectedAt),
+    );
+  }
+
+  factory DailyIntent.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DailyIntent(
+      dateKey: serializer.fromJson<String>(json['dateKey']),
+      intent: serializer.fromJson<String>(json['intent']),
+      selectedAt: serializer.fromJson<int>(json['selectedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'dateKey': serializer.toJson<String>(dateKey),
+      'intent': serializer.toJson<String>(intent),
+      'selectedAt': serializer.toJson<int>(selectedAt),
+    };
+  }
+
+  DailyIntent copyWith({String? dateKey, String? intent, int? selectedAt}) =>
+      DailyIntent(
+        dateKey: dateKey ?? this.dateKey,
+        intent: intent ?? this.intent,
+        selectedAt: selectedAt ?? this.selectedAt,
+      );
+  DailyIntent copyWithCompanion(DailyIntentsCompanion data) {
+    return DailyIntent(
+      dateKey: data.dateKey.present ? data.dateKey.value : this.dateKey,
+      intent: data.intent.present ? data.intent.value : this.intent,
+      selectedAt: data.selectedAt.present
+          ? data.selectedAt.value
+          : this.selectedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyIntent(')
+          ..write('dateKey: $dateKey, ')
+          ..write('intent: $intent, ')
+          ..write('selectedAt: $selectedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(dateKey, intent, selectedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DailyIntent &&
+          other.dateKey == this.dateKey &&
+          other.intent == this.intent &&
+          other.selectedAt == this.selectedAt);
+}
+
+class DailyIntentsCompanion extends UpdateCompanion<DailyIntent> {
+  final Value<String> dateKey;
+  final Value<String> intent;
+  final Value<int> selectedAt;
+  final Value<int> rowid;
+  const DailyIntentsCompanion({
+    this.dateKey = const Value.absent(),
+    this.intent = const Value.absent(),
+    this.selectedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DailyIntentsCompanion.insert({
+    required String dateKey,
+    required String intent,
+    required int selectedAt,
+    this.rowid = const Value.absent(),
+  }) : dateKey = Value(dateKey),
+       intent = Value(intent),
+       selectedAt = Value(selectedAt);
+  static Insertable<DailyIntent> custom({
+    Expression<String>? dateKey,
+    Expression<String>? intent,
+    Expression<int>? selectedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (dateKey != null) 'date_key': dateKey,
+      if (intent != null) 'intent': intent,
+      if (selectedAt != null) 'selected_at': selectedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DailyIntentsCompanion copyWith({
+    Value<String>? dateKey,
+    Value<String>? intent,
+    Value<int>? selectedAt,
+    Value<int>? rowid,
+  }) {
+    return DailyIntentsCompanion(
+      dateKey: dateKey ?? this.dateKey,
+      intent: intent ?? this.intent,
+      selectedAt: selectedAt ?? this.selectedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (dateKey.present) {
+      map['date_key'] = Variable<String>(dateKey.value);
+    }
+    if (intent.present) {
+      map['intent'] = Variable<String>(intent.value);
+    }
+    if (selectedAt.present) {
+      map['selected_at'] = Variable<int>(selectedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyIntentsCompanion(')
+          ..write('dateKey: $dateKey, ')
+          ..write('intent: $intent, ')
+          ..write('selectedAt: $selectedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DailyFreeActionsTable extends DailyFreeActions
+    with TableInfo<$DailyFreeActionsTable, DailyFreeAction> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DailyFreeActionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _dateKeyMeta = const VerificationMeta(
+    'dateKey',
+  );
+  @override
+  late final GeneratedColumn<String> dateKey = GeneratedColumn<String>(
+    'date_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _actionTypeMeta = const VerificationMeta(
+    'actionType',
+  );
+  @override
+  late final GeneratedColumn<String> actionType = GeneratedColumn<String>(
+    'action_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _performedAtMeta = const VerificationMeta(
+    'performedAt',
+  );
+  @override
+  late final GeneratedColumn<int> performedAt = GeneratedColumn<int>(
+    'performed_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [dateKey, actionType, performedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'daily_free_actions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DailyFreeAction> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('date_key')) {
+      context.handle(
+        _dateKeyMeta,
+        dateKey.isAcceptableOrUnknown(data['date_key']!, _dateKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateKeyMeta);
+    }
+    if (data.containsKey('action_type')) {
+      context.handle(
+        _actionTypeMeta,
+        actionType.isAcceptableOrUnknown(data['action_type']!, _actionTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_actionTypeMeta);
+    }
+    if (data.containsKey('performed_at')) {
+      context.handle(
+        _performedAtMeta,
+        performedAt.isAcceptableOrUnknown(
+          data['performed_at']!,
+          _performedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_performedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {dateKey, actionType};
+  @override
+  DailyFreeAction map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DailyFreeAction(
+      dateKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date_key'],
+      )!,
+      actionType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}action_type'],
+      )!,
+      performedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}performed_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DailyFreeActionsTable createAlias(String alias) {
+    return $DailyFreeActionsTable(attachedDatabase, alias);
+  }
+}
+
+class DailyFreeAction extends DataClass implements Insertable<DailyFreeAction> {
+  final String dateKey;
+  final String actionType;
+  final int performedAt;
+  const DailyFreeAction({
+    required this.dateKey,
+    required this.actionType,
+    required this.performedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['date_key'] = Variable<String>(dateKey);
+    map['action_type'] = Variable<String>(actionType);
+    map['performed_at'] = Variable<int>(performedAt);
+    return map;
+  }
+
+  DailyFreeActionsCompanion toCompanion(bool nullToAbsent) {
+    return DailyFreeActionsCompanion(
+      dateKey: Value(dateKey),
+      actionType: Value(actionType),
+      performedAt: Value(performedAt),
+    );
+  }
+
+  factory DailyFreeAction.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DailyFreeAction(
+      dateKey: serializer.fromJson<String>(json['dateKey']),
+      actionType: serializer.fromJson<String>(json['actionType']),
+      performedAt: serializer.fromJson<int>(json['performedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'dateKey': serializer.toJson<String>(dateKey),
+      'actionType': serializer.toJson<String>(actionType),
+      'performedAt': serializer.toJson<int>(performedAt),
+    };
+  }
+
+  DailyFreeAction copyWith({
+    String? dateKey,
+    String? actionType,
+    int? performedAt,
+  }) => DailyFreeAction(
+    dateKey: dateKey ?? this.dateKey,
+    actionType: actionType ?? this.actionType,
+    performedAt: performedAt ?? this.performedAt,
+  );
+  DailyFreeAction copyWithCompanion(DailyFreeActionsCompanion data) {
+    return DailyFreeAction(
+      dateKey: data.dateKey.present ? data.dateKey.value : this.dateKey,
+      actionType: data.actionType.present
+          ? data.actionType.value
+          : this.actionType,
+      performedAt: data.performedAt.present
+          ? data.performedAt.value
+          : this.performedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyFreeAction(')
+          ..write('dateKey: $dateKey, ')
+          ..write('actionType: $actionType, ')
+          ..write('performedAt: $performedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(dateKey, actionType, performedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DailyFreeAction &&
+          other.dateKey == this.dateKey &&
+          other.actionType == this.actionType &&
+          other.performedAt == this.performedAt);
+}
+
+class DailyFreeActionsCompanion extends UpdateCompanion<DailyFreeAction> {
+  final Value<String> dateKey;
+  final Value<String> actionType;
+  final Value<int> performedAt;
+  final Value<int> rowid;
+  const DailyFreeActionsCompanion({
+    this.dateKey = const Value.absent(),
+    this.actionType = const Value.absent(),
+    this.performedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DailyFreeActionsCompanion.insert({
+    required String dateKey,
+    required String actionType,
+    required int performedAt,
+    this.rowid = const Value.absent(),
+  }) : dateKey = Value(dateKey),
+       actionType = Value(actionType),
+       performedAt = Value(performedAt);
+  static Insertable<DailyFreeAction> custom({
+    Expression<String>? dateKey,
+    Expression<String>? actionType,
+    Expression<int>? performedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (dateKey != null) 'date_key': dateKey,
+      if (actionType != null) 'action_type': actionType,
+      if (performedAt != null) 'performed_at': performedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DailyFreeActionsCompanion copyWith({
+    Value<String>? dateKey,
+    Value<String>? actionType,
+    Value<int>? performedAt,
+    Value<int>? rowid,
+  }) {
+    return DailyFreeActionsCompanion(
+      dateKey: dateKey ?? this.dateKey,
+      actionType: actionType ?? this.actionType,
+      performedAt: performedAt ?? this.performedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (dateKey.present) {
+      map['date_key'] = Variable<String>(dateKey.value);
+    }
+    if (actionType.present) {
+      map['action_type'] = Variable<String>(actionType.value);
+    }
+    if (performedAt.present) {
+      map['performed_at'] = Variable<int>(performedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyFreeActionsCompanion(')
+          ..write('dateKey: $dateKey, ')
+          ..write('actionType: $actionType, ')
+          ..write('performedAt: $performedAt, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -2725,6 +3427,10 @@ abstract class _$AppDb extends GeneratedDatabase {
     this,
   );
   late final $UserSettingsTable userSettings = $UserSettingsTable(this);
+  late final $DailyIntentsTable dailyIntents = $DailyIntentsTable(this);
+  late final $DailyFreeActionsTable dailyFreeActions = $DailyFreeActionsTable(
+    this,
+  );
   late final $EquippedCosmeticsTable equippedCosmetics =
       $EquippedCosmeticsTable(this);
   late final $BattleRewardsClaimedTable battleRewardsClaimed =
@@ -2738,6 +3444,8 @@ abstract class _$AppDb extends GeneratedDatabase {
     habits,
     habitCompletions,
     userSettings,
+    dailyIntents,
+    dailyFreeActions,
     equippedCosmetics,
     battleRewardsClaimed,
     xpEvents,
@@ -3129,6 +3837,8 @@ typedef $$HabitCompletionsTableCreateCompanionBuilder =
       required String habitId,
       required int completedAt,
       required String localDay,
+      Value<String> actionType,
+      Value<bool?> lootSuccess,
       Value<int> rowid,
     });
 typedef $$HabitCompletionsTableUpdateCompanionBuilder =
@@ -3137,6 +3847,8 @@ typedef $$HabitCompletionsTableUpdateCompanionBuilder =
       Value<String> habitId,
       Value<int> completedAt,
       Value<String> localDay,
+      Value<String> actionType,
+      Value<bool?> lootSuccess,
       Value<int> rowid,
     });
 
@@ -3191,6 +3903,16 @@ class $$HabitCompletionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get actionType => $composableBuilder(
+    column: $table.actionType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get lootSuccess => $composableBuilder(
+    column: $table.lootSuccess,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$HabitsTableFilterComposer get habitId {
     final $$HabitsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -3239,6 +3961,16 @@ class $$HabitCompletionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get actionType => $composableBuilder(
+    column: $table.actionType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get lootSuccess => $composableBuilder(
+    column: $table.lootSuccess,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$HabitsTableOrderingComposer get habitId {
     final $$HabitsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -3282,6 +4014,16 @@ class $$HabitCompletionsTableAnnotationComposer
 
   GeneratedColumn<String> get localDay =>
       $composableBuilder(column: $table.localDay, builder: (column) => column);
+
+  GeneratedColumn<String> get actionType => $composableBuilder(
+    column: $table.actionType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get lootSuccess => $composableBuilder(
+    column: $table.lootSuccess,
+    builder: (column) => column,
+  );
 
   $$HabitsTableAnnotationComposer get habitId {
     final $$HabitsTableAnnotationComposer composer = $composerBuilder(
@@ -3339,12 +4081,16 @@ class $$HabitCompletionsTableTableManager
                 Value<String> habitId = const Value.absent(),
                 Value<int> completedAt = const Value.absent(),
                 Value<String> localDay = const Value.absent(),
+                Value<String> actionType = const Value.absent(),
+                Value<bool?> lootSuccess = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HabitCompletionsCompanion(
                 id: id,
                 habitId: habitId,
                 completedAt: completedAt,
                 localDay: localDay,
+                actionType: actionType,
+                lootSuccess: lootSuccess,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -3353,12 +4099,16 @@ class $$HabitCompletionsTableTableManager
                 required String habitId,
                 required int completedAt,
                 required String localDay,
+                Value<String> actionType = const Value.absent(),
+                Value<bool?> lootSuccess = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HabitCompletionsCompanion.insert(
                 id: id,
                 habitId: habitId,
                 completedAt: completedAt,
                 localDay: localDay,
+                actionType: actionType,
+                lootSuccess: lootSuccess,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -3444,6 +4194,7 @@ typedef $$UserSettingsTableCreateCompanionBuilder =
       Value<String> themeId,
       Value<String> profileAvatarMode,
       Value<String> profileAvatarPath,
+      Value<String> profileName,
       Value<bool> onboardingCompleted,
       Value<String> experienceLevel,
       Value<String> focusTags,
@@ -3464,6 +4215,7 @@ typedef $$UserSettingsTableUpdateCompanionBuilder =
       Value<String> themeId,
       Value<String> profileAvatarMode,
       Value<String> profileAvatarPath,
+      Value<String> profileName,
       Value<bool> onboardingCompleted,
       Value<String> experienceLevel,
       Value<String> focusTags,
@@ -3537,6 +4289,11 @@ class $$UserSettingsTableFilterComposer
 
   ColumnFilters<String> get profileAvatarPath => $composableBuilder(
     column: $table.profileAvatarPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get profileName => $composableBuilder(
+    column: $table.profileName,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3635,6 +4392,11 @@ class $$UserSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get profileName => $composableBuilder(
+    column: $table.profileName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get onboardingCompleted => $composableBuilder(
     column: $table.onboardingCompleted,
     builder: (column) => ColumnOrderings(column),
@@ -3726,6 +4488,11 @@ class $$UserSettingsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get profileName => $composableBuilder(
+    column: $table.profileName,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get onboardingCompleted => $composableBuilder(
     column: $table.onboardingCompleted,
     builder: (column) => column,
@@ -3791,6 +4558,7 @@ class $$UserSettingsTableTableManager
                 Value<String> themeId = const Value.absent(),
                 Value<String> profileAvatarMode = const Value.absent(),
                 Value<String> profileAvatarPath = const Value.absent(),
+                Value<String> profileName = const Value.absent(),
                 Value<bool> onboardingCompleted = const Value.absent(),
                 Value<String> experienceLevel = const Value.absent(),
                 Value<String> focusTags = const Value.absent(),
@@ -3809,6 +4577,7 @@ class $$UserSettingsTableTableManager
                 themeId: themeId,
                 profileAvatarMode: profileAvatarMode,
                 profileAvatarPath: profileAvatarPath,
+                profileName: profileName,
                 onboardingCompleted: onboardingCompleted,
                 experienceLevel: experienceLevel,
                 focusTags: focusTags,
@@ -3829,6 +4598,7 @@ class $$UserSettingsTableTableManager
                 Value<String> themeId = const Value.absent(),
                 Value<String> profileAvatarMode = const Value.absent(),
                 Value<String> profileAvatarPath = const Value.absent(),
+                Value<String> profileName = const Value.absent(),
                 Value<bool> onboardingCompleted = const Value.absent(),
                 Value<String> experienceLevel = const Value.absent(),
                 Value<String> focusTags = const Value.absent(),
@@ -3847,6 +4617,7 @@ class $$UserSettingsTableTableManager
                 themeId: themeId,
                 profileAvatarMode: profileAvatarMode,
                 profileAvatarPath: profileAvatarPath,
+                profileName: profileName,
                 onboardingCompleted: onboardingCompleted,
                 experienceLevel: experienceLevel,
                 focusTags: focusTags,
@@ -3873,6 +4644,333 @@ typedef $$UserSettingsTableProcessedTableManager =
       $$UserSettingsTableUpdateCompanionBuilder,
       (UserSetting, BaseReferences<_$AppDb, $UserSettingsTable, UserSetting>),
       UserSetting,
+      PrefetchHooks Function()
+    >;
+typedef $$DailyIntentsTableCreateCompanionBuilder =
+    DailyIntentsCompanion Function({
+      required String dateKey,
+      required String intent,
+      required int selectedAt,
+      Value<int> rowid,
+    });
+typedef $$DailyIntentsTableUpdateCompanionBuilder =
+    DailyIntentsCompanion Function({
+      Value<String> dateKey,
+      Value<String> intent,
+      Value<int> selectedAt,
+      Value<int> rowid,
+    });
+
+class $$DailyIntentsTableFilterComposer
+    extends Composer<_$AppDb, $DailyIntentsTable> {
+  $$DailyIntentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get dateKey => $composableBuilder(
+    column: $table.dateKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get intent => $composableBuilder(
+    column: $table.intent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get selectedAt => $composableBuilder(
+    column: $table.selectedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DailyIntentsTableOrderingComposer
+    extends Composer<_$AppDb, $DailyIntentsTable> {
+  $$DailyIntentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get dateKey => $composableBuilder(
+    column: $table.dateKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get intent => $composableBuilder(
+    column: $table.intent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get selectedAt => $composableBuilder(
+    column: $table.selectedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DailyIntentsTableAnnotationComposer
+    extends Composer<_$AppDb, $DailyIntentsTable> {
+  $$DailyIntentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get dateKey =>
+      $composableBuilder(column: $table.dateKey, builder: (column) => column);
+
+  GeneratedColumn<String> get intent =>
+      $composableBuilder(column: $table.intent, builder: (column) => column);
+
+  GeneratedColumn<int> get selectedAt => $composableBuilder(
+    column: $table.selectedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$DailyIntentsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDb,
+          $DailyIntentsTable,
+          DailyIntent,
+          $$DailyIntentsTableFilterComposer,
+          $$DailyIntentsTableOrderingComposer,
+          $$DailyIntentsTableAnnotationComposer,
+          $$DailyIntentsTableCreateCompanionBuilder,
+          $$DailyIntentsTableUpdateCompanionBuilder,
+          (
+            DailyIntent,
+            BaseReferences<_$AppDb, $DailyIntentsTable, DailyIntent>,
+          ),
+          DailyIntent,
+          PrefetchHooks Function()
+        > {
+  $$DailyIntentsTableTableManager(_$AppDb db, $DailyIntentsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DailyIntentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DailyIntentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DailyIntentsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> dateKey = const Value.absent(),
+                Value<String> intent = const Value.absent(),
+                Value<int> selectedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DailyIntentsCompanion(
+                dateKey: dateKey,
+                intent: intent,
+                selectedAt: selectedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String dateKey,
+                required String intent,
+                required int selectedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => DailyIntentsCompanion.insert(
+                dateKey: dateKey,
+                intent: intent,
+                selectedAt: selectedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DailyIntentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDb,
+      $DailyIntentsTable,
+      DailyIntent,
+      $$DailyIntentsTableFilterComposer,
+      $$DailyIntentsTableOrderingComposer,
+      $$DailyIntentsTableAnnotationComposer,
+      $$DailyIntentsTableCreateCompanionBuilder,
+      $$DailyIntentsTableUpdateCompanionBuilder,
+      (DailyIntent, BaseReferences<_$AppDb, $DailyIntentsTable, DailyIntent>),
+      DailyIntent,
+      PrefetchHooks Function()
+    >;
+typedef $$DailyFreeActionsTableCreateCompanionBuilder =
+    DailyFreeActionsCompanion Function({
+      required String dateKey,
+      required String actionType,
+      required int performedAt,
+      Value<int> rowid,
+    });
+typedef $$DailyFreeActionsTableUpdateCompanionBuilder =
+    DailyFreeActionsCompanion Function({
+      Value<String> dateKey,
+      Value<String> actionType,
+      Value<int> performedAt,
+      Value<int> rowid,
+    });
+
+class $$DailyFreeActionsTableFilterComposer
+    extends Composer<_$AppDb, $DailyFreeActionsTable> {
+  $$DailyFreeActionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get dateKey => $composableBuilder(
+    column: $table.dateKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get actionType => $composableBuilder(
+    column: $table.actionType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get performedAt => $composableBuilder(
+    column: $table.performedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DailyFreeActionsTableOrderingComposer
+    extends Composer<_$AppDb, $DailyFreeActionsTable> {
+  $$DailyFreeActionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get dateKey => $composableBuilder(
+    column: $table.dateKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get actionType => $composableBuilder(
+    column: $table.actionType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get performedAt => $composableBuilder(
+    column: $table.performedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DailyFreeActionsTableAnnotationComposer
+    extends Composer<_$AppDb, $DailyFreeActionsTable> {
+  $$DailyFreeActionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get dateKey =>
+      $composableBuilder(column: $table.dateKey, builder: (column) => column);
+
+  GeneratedColumn<String> get actionType => $composableBuilder(
+    column: $table.actionType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get performedAt => $composableBuilder(
+    column: $table.performedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$DailyFreeActionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDb,
+          $DailyFreeActionsTable,
+          DailyFreeAction,
+          $$DailyFreeActionsTableFilterComposer,
+          $$DailyFreeActionsTableOrderingComposer,
+          $$DailyFreeActionsTableAnnotationComposer,
+          $$DailyFreeActionsTableCreateCompanionBuilder,
+          $$DailyFreeActionsTableUpdateCompanionBuilder,
+          (
+            DailyFreeAction,
+            BaseReferences<_$AppDb, $DailyFreeActionsTable, DailyFreeAction>,
+          ),
+          DailyFreeAction,
+          PrefetchHooks Function()
+        > {
+  $$DailyFreeActionsTableTableManager(_$AppDb db, $DailyFreeActionsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DailyFreeActionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DailyFreeActionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DailyFreeActionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> dateKey = const Value.absent(),
+                Value<String> actionType = const Value.absent(),
+                Value<int> performedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DailyFreeActionsCompanion(
+                dateKey: dateKey,
+                actionType: actionType,
+                performedAt: performedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String dateKey,
+                required String actionType,
+                required int performedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => DailyFreeActionsCompanion.insert(
+                dateKey: dateKey,
+                actionType: actionType,
+                performedAt: performedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DailyFreeActionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDb,
+      $DailyFreeActionsTable,
+      DailyFreeAction,
+      $$DailyFreeActionsTableFilterComposer,
+      $$DailyFreeActionsTableOrderingComposer,
+      $$DailyFreeActionsTableAnnotationComposer,
+      $$DailyFreeActionsTableCreateCompanionBuilder,
+      $$DailyFreeActionsTableUpdateCompanionBuilder,
+      (
+        DailyFreeAction,
+        BaseReferences<_$AppDb, $DailyFreeActionsTable, DailyFreeAction>,
+      ),
+      DailyFreeAction,
       PrefetchHooks Function()
     >;
 typedef $$EquippedCosmeticsTableCreateCompanionBuilder =
@@ -4406,6 +5504,10 @@ class $AppDbManager {
       $$HabitCompletionsTableTableManager(_db, _db.habitCompletions);
   $$UserSettingsTableTableManager get userSettings =>
       $$UserSettingsTableTableManager(_db, _db.userSettings);
+  $$DailyIntentsTableTableManager get dailyIntents =>
+      $$DailyIntentsTableTableManager(_db, _db.dailyIntents);
+  $$DailyFreeActionsTableTableManager get dailyFreeActions =>
+      $$DailyFreeActionsTableTableManager(_db, _db.dailyFreeActions);
   $$EquippedCosmeticsTableTableManager get equippedCosmetics =>
       $$EquippedCosmeticsTableTableManager(_db, _db.equippedCosmetics);
   $$BattleRewardsClaimedTableTableManager get battleRewardsClaimed =>

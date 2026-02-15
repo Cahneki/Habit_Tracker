@@ -1,5 +1,12 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
+import '../../data/daily_actions/daily_free_action_model.dart';
+import '../../data/daily_actions/daily_free_action_repository.dart';
+import '../../data/daily_intent/daily_intent_model.dart';
+import '../../data/daily_intent/daily_intent_repository.dart';
+import '../../data/quests/quest_completion_model.dart';
 import '../../db/app_db.dart';
 import '../../services/audio_service.dart';
 import '../../shared/local_day.dart';
@@ -14,6 +21,10 @@ import '../habits/schedule_picker.dart';
 import '../quests/quests_view_model.dart';
 import '../quests/widgets/quest_list_tile.dart';
 import '../settings/settings_repository.dart';
+import 'today_view_model.dart';
+import 'widgets/daily_intent_card.dart';
+import 'widgets/empty_today_panel.dart';
+import 'widgets/quest_action_modal.dart';
 
 enum _MissionSort { urgency, xpReward, streakRisk, manual }
 
@@ -47,6 +58,7 @@ class _HabitRowVm {
   const _HabitRowVm({
     required this.habit,
     required this.stats,
+    required this.completion,
     required this.timeLabel,
     required this.weekCompleted,
     required this.weekScheduled,
@@ -55,6 +67,7 @@ class _HabitRowVm {
 
   final Habit habit;
   final StreakStats stats;
+  final QuestCompletionRecord? completion;
   final String timeLabel;
   final int weekCompleted;
   final int weekScheduled;
@@ -71,6 +84,18 @@ class _UpcomingRowVm {
   final Habit habit;
   final String subtitle;
   final int manualOrder;
+}
+
+class _TodayActionLogItemVm {
+  const _TodayActionLogItemVm({
+    required this.title,
+    required this.detail,
+    required this.performedAt,
+  });
+
+  final String title;
+  final String detail;
+  final DateTime performedAt;
 }
 
 class _HabitsDashboardVm {
@@ -90,6 +115,9 @@ class _HabitsDashboardVm {
     required this.questsTotal,
     required this.xpToday,
     required this.bossDamageToday,
+    required this.storedPower,
+    required this.scoutedToday,
+    required this.freeActions,
     required this.totalCompletions,
     required this.lifetimeBossDamage,
     required this.weeklyDaysLeft,
@@ -111,6 +139,9 @@ class _HabitsDashboardVm {
   final int questsTotal;
   final int xpToday;
   final int bossDamageToday;
+  final int storedPower;
+  final bool scoutedToday;
+  final List<DailyFreeActionRecord> freeActions;
   final int totalCompletions;
   final int lifetimeBossDamage;
   final int weeklyDaysLeft;
@@ -119,15 +150,30 @@ class _HabitsDashboardVm {
 
 class _TodayPageState extends State<TodayPage> {
   late Future<_HabitsDashboardVm> _dashboardFuture;
+  late final TodayViewModel _todayViewModel;
+  late final DailyFreeActionRepository _dailyFreeActionRepository;
   int? _lastLevel;
   late final VoidCallback _dataListener;
+  late final VoidCallback _intentListener;
   _MissionSort _sort = _MissionSort.urgency;
   bool _completedExpanded = true;
+  bool _intentEditorOpen = false;
 
   @override
   void initState() {
     super.initState();
+    _dailyFreeActionRepository = DailyFreeActionRepository(widget.repo.db);
     _dashboardFuture = _loadDashboard();
+    _todayViewModel = TodayViewModel(
+      dailyIntentRepository: DailyIntentRepository(widget.repo.db),
+      dailyFreeActionRepository: _dailyFreeActionRepository,
+    );
+    _todayViewModel.loadTodayState();
+    _intentListener = () {
+      if (!mounted) return;
+      setState(() {});
+    };
+    _todayViewModel.addListener(_intentListener);
     _dataListener = _refresh;
     widget.dataVersion.addListener(_dataListener);
   }
@@ -135,14 +181,20 @@ class _TodayPageState extends State<TodayPage> {
   @override
   void dispose() {
     widget.dataVersion.removeListener(_dataListener);
+    _todayViewModel.removeListener(_intentListener);
+    _todayViewModel.dispose();
     super.dispose();
   }
 
   Future<_HabitsDashboardVm> _loadDashboard() async {
     final now = DateTime.now();
     final habits = await widget.repo.listActiveHabits();
+    final freeActions = await _dailyFreeActionRepository.listForDate(now);
     final dayStatuses = await widget.repo.getHabitsForDate(now);
     final statusById = {for (final s in dayStatuses) s.habit.id: s};
+    final completionByHabit = await widget.repo.getCompletionRecordsForDate(
+      now,
+    );
     final settings = await widget.settingsRepo.getSettings();
     final equipped = await widget.avatarRepo.getEquipped();
     final statsById = await widget.repo.getStreakStatsForHabits(habits);
@@ -173,7 +225,23 @@ class _TodayPageState extends State<TodayPage> {
     var questsTotal = 0;
     var xpToday = 0;
     var bossDamageToday = 0;
+    var storedPower = 0;
+    var scoutedToday = false;
     var lifetimeBossDamage = 0;
+
+    for (final action in freeActions) {
+      switch (action.actionType) {
+        case DailyFreeActionType.scout:
+          scoutedToday = true;
+          break;
+        case DailyFreeActionType.train:
+          xpToday += 5;
+          break;
+        case DailyFreeActionType.prepare:
+          storedPower += 1;
+          break;
+      }
+    }
 
     for (var i = 0; i < habits.length; i++) {
       final habit = habits[i];
@@ -195,6 +263,7 @@ class _TodayPageState extends State<TodayPage> {
           HabitDayStatus(habit: habit, scheduled: false, completed: false);
 
       if (status.scheduled) {
+        final completion = completionByHabit[habit.id];
         final weeklyDone = _countWeeklyDone(
           habit,
           weekStart,
@@ -211,6 +280,7 @@ class _TodayPageState extends State<TodayPage> {
           _HabitRowVm(
             habit: habit,
             stats: stats,
+            completion: completion,
             timeLabel: _timeLabel(habit.timeOfDay),
             weekCompleted: weeklyDone,
             weekScheduled: weeklyScheduled,
@@ -219,10 +289,12 @@ class _TodayPageState extends State<TodayPage> {
         );
 
         questsTotal += 1;
-        if (stats.completedToday) {
+        if (completion != null) {
           questsDone += 1;
           xpToday += xpForHabit(habit, stats);
-          bossDamageToday += _baseDamageForHabit(habit.baseXp);
+          if (completion.actionType == QuestActionType.attack) {
+            bossDamageToday += _baseDamageForHabit(habit.baseXp);
+          }
         }
       } else {
         upcomingRows.add(
@@ -272,6 +344,9 @@ class _TodayPageState extends State<TodayPage> {
       questsTotal: questsTotal,
       xpToday: xpToday,
       bossDamageToday: bossDamageToday,
+      storedPower: storedPower,
+      scoutedToday: scoutedToday,
+      freeActions: freeActions,
       totalCompletions: totalCompletions,
       lifetimeBossDamage: lifetimeBossDamage,
       weeklyDaysLeft: weeklyBattle.daysLeft,
@@ -379,15 +454,16 @@ class _TodayPageState extends State<TodayPage> {
     }
   }
 
-  String _displayName() {
-    // TODO: Replace with persisted profile name when available.
-    return 'Adventurer';
+  String _displayName(UserSetting settings) {
+    final name = settings.profileName.trim();
+    return name.isEmpty ? 'Adventurer' : name;
   }
 
   Future<void> _refresh() async {
     setState(() {
       _dashboardFuture = _loadDashboard();
     });
+    await _todayViewModel.loadTodayState();
   }
 
   Future<void> _addHabit() async {
@@ -420,16 +496,59 @@ class _TodayPageState extends State<TodayPage> {
     );
   }
 
-  Future<void> _toggleMission(_HabitRowVm row) async {
-    final wasCompleted = row.stats.completedToday;
+  Future<void> _completeMissionWithAction(_HabitRowVm row) async {
+    if (row.completion != null) return;
 
-    await widget.repo.toggleCompletionForDay(row.habit.id, DateTime.now());
+    final action = await showQuestActionModal(context);
+    if (!mounted || action == null) return;
+
+    final lootSuccess = action == QuestActionType.loot
+        ? Random().nextBool()
+        : null;
+    final completed = await widget.repo.completeHabitWithAction(
+      row.habit.id,
+      DateTime.now(),
+      action,
+      lootSuccess: lootSuccess,
+    );
+    if (!completed) return;
+
     await _refresh();
     widget.onDataChanged();
+    await widget.audio.play(SoundEvent.complete);
+  }
 
-    if (!wasCompleted) {
-      await widget.audio.play(SoundEvent.complete);
+  Future<void> _performFreeAction(DailyFreeActionType action) async {
+    if (!_todayViewModel.hasSelectedIntent) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Choose a Daily Intent first.')),
+      );
+      return;
     }
+    final performed = await _todayViewModel.performFreeAction(action);
+    if (!performed) return;
+
+    await _refresh();
+    widget.onDataChanged();
+    await widget.audio.play(SoundEvent.complete);
+  }
+
+  _TodayActionLogItemVm _questActionLogItem(_HabitRowVm row) {
+    return _TodayActionLogItemVm(
+      title: row.habit.name,
+      detail:
+          '${row.completion!.actionType.emoji} ${row.completion!.actionType.label}',
+      performedAt: row.completion!.completedAt,
+    );
+  }
+
+  _TodayActionLogItemVm _freeActionLogItem(DailyFreeActionRecord action) {
+    return _TodayActionLogItemVm(
+      title: action.actionType.title,
+      detail: '${action.actionType.emoji} ${action.actionType.logLabel}',
+      performedAt: action.performedAt,
+    );
   }
 
   QuestUiItem _questItemForRow(_HabitRowVm row) {
@@ -437,7 +556,7 @@ class _TodayPageState extends State<TodayPage> {
       habit: row.habit,
       streak: row.stats,
       isScheduledToday: true,
-      isCompletedToday: row.stats.completedToday,
+      isCompletedToday: row.completion != null,
       isAtRisk: isUrgent(row.habit, row.stats),
       isBacklog: row.habit.scheduleMask == 0,
       timeOfDay: row.habit.timeOfDay,
@@ -561,7 +680,10 @@ class _TodayPageState extends State<TodayPage> {
     }
   }
 
-  List<Widget> _buildTodayMissionRows(List<_HabitRowVm> rows) {
+  List<Widget> _buildTodayMissionRows(
+    List<_HabitRowVm> rows, {
+    required bool canComplete,
+  }) {
     final scheme = Theme.of(context).colorScheme;
     final tokens = Theme.of(context).extension<GameTokens>()!;
 
@@ -601,7 +723,9 @@ class _TodayPageState extends State<TodayPage> {
                   SizedBox(
                     height: 34,
                     child: ElevatedButton(
-                      onPressed: () => _toggleMission(row),
+                      onPressed: canComplete
+                          ? () => _completeMissionWithAction(row)
+                          : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: scheme.primary,
                         foregroundColor: scheme.onPrimary,
@@ -781,11 +905,18 @@ class _TodayPageState extends State<TodayPage> {
 
                     final vm = snap.data!;
                     final completedRows = vm.rows
-                        .where((r) => r.stats.completedToday)
+                        .where((r) => r.completion != null)
                         .toList();
                     final activeRows = vm.rows
-                        .where((r) => !r.stats.completedToday)
+                        .where((r) => r.completion == null)
                         .toList();
+                    final actionLogs = <_TodayActionLogItemVm>[
+                      ...completedRows.map(_questActionLogItem),
+                      ...vm.freeActions.map(_freeActionLogItem),
+                    ]..sort((a, b) => b.performedAt.compareTo(a.performedAt));
+                    final lastAction = actionLogs.isEmpty
+                        ? null
+                        : actionLogs.first;
                     final sortedActive = _sortRows(activeRows);
                     final sortedUpcoming = List<_UpcomingRowVm>.from(
                       vm.upcomingRows,
@@ -794,6 +925,14 @@ class _TodayPageState extends State<TodayPage> {
                       0.0,
                       1.0,
                     );
+                    final intentSelected = _todayViewModel.hasSelectedIntent;
+                    final selectedIntent = _todayViewModel.selectedIntentType;
+                    final showDailyIntentCard =
+                        !intentSelected || _intentEditorOpen;
+                    final completedFreeActions = <DailyFreeActionType>{
+                      ...vm.freeActions.map((action) => action.actionType),
+                      ..._todayViewModel.completedFreeActions,
+                    };
 
                     return RefreshIndicator(
                       onRefresh: _refresh,
@@ -823,7 +962,7 @@ class _TodayPageState extends State<TodayPage> {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              _displayName(),
+                                              _displayName(vm.settings),
                                               style: const TextStyle(
                                                 fontSize: 20,
                                                 fontWeight: FontWeight.w800,
@@ -846,12 +985,32 @@ class _TodayPageState extends State<TodayPage> {
                                               ),
                                             ),
                                             const SizedBox(height: 8),
-                                            Text(
-                                              '${vm.xp} / ${vm.xpGoal} XP',
-                                              style: TextStyle(
-                                                color: scheme.onSurfaceVariant,
-                                                fontWeight: FontWeight.w700,
-                                              ),
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    '${vm.xp} / ${vm.xpGoal} XP',
+                                                    style: TextStyle(
+                                                      color: scheme
+                                                          .onSurfaceVariant,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ),
+                                                if (selectedIntent != null) ...[
+                                                  const SizedBox(width: 8),
+                                                  _IntentInlineChip(
+                                                    intent: selectedIntent,
+                                                    onTap: () {
+                                                      setState(() {
+                                                        _intentEditorOpen =
+                                                            !_intentEditorOpen;
+                                                      });
+                                                    },
+                                                  ),
+                                                ],
+                                              ],
                                             ),
                                           ],
                                         ),
@@ -875,7 +1034,7 @@ class _TodayPageState extends State<TodayPage> {
                                         .map(
                                           (row) => _DailySummaryQuestItem(
                                             name: row.habit.name,
-                                            completed: row.stats.completedToday,
+                                            completed: row.completion != null,
                                           ),
                                         )
                                         .toList(),
@@ -884,65 +1043,102 @@ class _TodayPageState extends State<TodayPage> {
                                   _WeeklyBossCard(
                                     daysLeft: vm.weeklyDaysLeft,
                                     hpProgress: bossHpProgress,
+                                    todayIntent: selectedIntent,
+                                    actionsTakenToday: actionLogs.length,
+                                    lastAction: lastAction,
+                                    scoutedToday: vm.scoutedToday,
+                                    storedPower: vm.storedPower,
                                     onViewBattle: widget.onOpenBattles,
                                   ),
                                 ],
                               ),
                             ),
                             const SizedBox(height: 14),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    "Today's Quests (${sortedActive.length})",
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w800,
-                                    ),
+                            if (showDailyIntentCard) ...[
+                              AnimatedBuilder(
+                                animation: _todayViewModel,
+                                builder: (context, _) {
+                                  return DailyIntentCard(
+                                    loading: _todayViewModel.loadingIntent,
+                                    saving: _todayViewModel.savingIntent,
+                                    selection: _todayViewModel.todayIntent,
+                                    pendingIntent:
+                                        _todayViewModel.pendingIntent,
+                                    editMode: _intentEditorOpen,
+                                    error: _todayViewModel.intentError,
+                                    onRetry: _todayViewModel.loadTodayIntent,
+                                    onSelect: (intent) async {
+                                      await _todayViewModel.selectIntent(
+                                        intent,
+                                      );
+                                      if (!mounted) return;
+                                      setState(() {
+                                        _intentEditorOpen = false;
+                                      });
+                                    },
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 14),
+                            ],
+                            if (!intentSelected && sortedActive.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Text(
+                                  'Choose a Daily Intent to begin today\'s run.',
+                                  style: TextStyle(
+                                    color: scheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                                IconButton(
-                                  tooltip: 'Sort',
-                                  onPressed: _showSortSheet,
-                                  icon: const Icon(Icons.sort_rounded),
-                                ),
-                              ],
+                              ),
+                            Opacity(
+                              opacity: intentSelected ? 1 : 0.6,
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      "Today's Quests (${sortedActive.length})",
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Sort',
+                                    onPressed: _showSortSheet,
+                                    icon: const Icon(Icons.sort_rounded),
+                                  ),
+                                ],
+                              ),
                             ),
                             const SizedBox(height: 8),
-                            _GlassCard(
-                              padding: EdgeInsets.zero,
-                              child: Column(
-                                children: [
-                                  if (sortedActive.isEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Center(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              'No active quests scheduled today.',
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
-                                                color: scheme.onSurfaceVariant,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 10),
-                                            ElevatedButton.icon(
-                                              onPressed: _addHabit,
-                                              icon: const Icon(
-                                                Icons.add_rounded,
-                                              ),
-                                              label: const Text('Add Quest'),
-                                            ),
-                                          ],
-                                        ),
+                            Opacity(
+                              opacity: intentSelected ? 1 : 0.6,
+                              child: _GlassCard(
+                                padding: EdgeInsets.zero,
+                                child: Column(
+                                  children: [
+                                    if (sortedActive.isEmpty)
+                                      EmptyTodayPanel(
+                                        intentSelected: intentSelected,
+                                        completedActions: completedFreeActions,
+                                        savingActions:
+                                            _todayViewModel.savingFreeActions,
+                                        onPerformAction: (action) {
+                                          _performFreeAction(action);
+                                        },
+                                        onAddQuest: _addHabit,
+                                        onEditSchedule: widget.onOpenHabits,
+                                      )
+                                    else
+                                      ..._buildTodayMissionRows(
+                                        sortedActive,
+                                        canComplete: intentSelected,
                                       ),
-                                    )
-                                  else
-                                    ..._buildTodayMissionRows(sortedActive),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                             if (sortedUpcoming.isNotEmpty) ...[
@@ -986,7 +1182,7 @@ class _TodayPageState extends State<TodayPage> {
                                           const SizedBox(width: 10),
                                           Expanded(
                                             child: Text(
-                                              'Completed Today (${completedRows.length})',
+                                              'Actions Taken (${actionLogs.length})',
                                               style: const TextStyle(
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.w800,
@@ -1003,7 +1199,7 @@ class _TodayPageState extends State<TodayPage> {
                                     ),
                                   ),
                                   if (_completedExpanded &&
-                                      completedRows.isNotEmpty)
+                                      actionLogs.isNotEmpty)
                                     Padding(
                                       padding: const EdgeInsets.fromLTRB(
                                         14,
@@ -1012,40 +1208,65 @@ class _TodayPageState extends State<TodayPage> {
                                         12,
                                       ),
                                       child: Column(
-                                        children: completedRows
+                                        children: actionLogs
                                             .map(
-                                              (row) => Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: Text(
-                                                      row.habit.name,
+                                              (item) => Padding(
+                                                padding: const EdgeInsets.only(
+                                                  bottom: 10,
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      item.title,
                                                       style: TextStyle(
-                                                        decoration:
-                                                            TextDecoration
-                                                                .lineThrough,
-                                                        color: scheme
-                                                            .onSurfaceVariant,
+                                                        color: scheme.onSurface,
                                                         fontWeight:
-                                                            FontWeight.w600,
+                                                            FontWeight.w700,
                                                       ),
                                                     ),
-                                                  ),
-                                                  IconButton(
-                                                    tooltip: 'Undo',
-                                                    onPressed: () =>
-                                                        _toggleMission(row),
-                                                    icon: const Icon(
-                                                      Icons.undo_rounded,
+                                                    const SizedBox(height: 2),
+                                                    Row(
+                                                      children: [
+                                                        Text(
+                                                          item.detail,
+                                                          style: TextStyle(
+                                                            color: scheme
+                                                                .onSurfaceVariant,
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                            fontSize: 13,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                        Text(
+                                                          TimeOfDay.fromDateTime(
+                                                            item.performedAt,
+                                                          ).format(context),
+                                                          style: TextStyle(
+                                                            color: scheme
+                                                                .onSurfaceVariant
+                                                                .withValues(
+                                                                  alpha: 0.7,
+                                                                ),
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            fontSize: 12,
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
-                                                  ),
-                                                ],
+                                                  ],
+                                                ),
                                               ),
                                             )
                                             .toList(),
                                       ),
                                     ),
-                                  if (_completedExpanded &&
-                                      completedRows.isEmpty)
+                                  if (_completedExpanded && actionLogs.isEmpty)
                                     Padding(
                                       padding: const EdgeInsets.fromLTRB(
                                         14,
@@ -1056,7 +1277,7 @@ class _TodayPageState extends State<TodayPage> {
                                       child: Align(
                                         alignment: Alignment.centerLeft,
                                         child: Text(
-                                          'Complete a quest to earn XP.',
+                                          'Complete a quest or take a free action.',
                                           style: TextStyle(
                                             color: scheme.onSurfaceVariant,
                                             fontWeight: FontWeight.w600,
@@ -1144,25 +1365,88 @@ class _AvatarLevelBadge extends StatelessWidget {
   }
 }
 
+class _IntentInlineChip extends StatelessWidget {
+  const _IntentInlineChip({required this.intent, required this.onTap});
+
+  final DailyIntentType intent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.primary.withValues(alpha: 0.16),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: scheme.primary.withValues(alpha: 0.45)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(intent.icon, size: 14, color: scheme.primary),
+              const SizedBox(width: 5),
+              Text(
+                intent.label,
+                style: TextStyle(
+                  color: scheme.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _WeeklyBossCard extends StatelessWidget {
   const _WeeklyBossCard({
     required this.daysLeft,
     required this.hpProgress,
+    required this.todayIntent,
+    required this.actionsTakenToday,
+    required this.lastAction,
+    required this.scoutedToday,
+    required this.storedPower,
     required this.onViewBattle,
   });
 
   final int daysLeft;
   final double hpProgress;
+  final DailyIntentType? todayIntent;
+  final int actionsTakenToday;
+  final _TodayActionLogItemVm? lastAction;
+  final bool scoutedToday;
+  final int storedPower;
   final VoidCallback onViewBattle;
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final daysLabel = daysLeft == 1 ? '1 day left' : '$daysLeft days left';
-    final hpPct = (hpProgress * 100).round();
+    final hpPct = (hpProgress * 100).clamp(0, 100).round();
+    final statusLabel = _statusFor(hpPct);
+    final canEngage = todayIntent != null;
+    final ctaLabel = hpPct == 0 ? 'View Results' : 'Engage Boss';
+    final threatLine = _threatCopy(actionsTakenToday, DateTime.now());
+    final nextAction = _nextActionFor(todayIntent);
+    final bonusLine = _bonusCopy(todayIntent);
+    final lastLine = lastAction == null
+        ? 'Last: None yet today'
+        : 'Last: ${lastAction!.detail} (${TimeOfDay.fromDateTime(lastAction!.performedAt).format(context)})';
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 420;
-        return Container(
+        final card = Container(
           padding: EdgeInsets.fromLTRB(
             compact ? 12 : 14,
             compact ? 12 : 14,
@@ -1171,14 +1455,18 @@ class _WeeklyBossCard extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: [Color(0xFF5A3124), Color(0xFF8D5630), Color(0xFF2B211D)],
+              colors: [
+                scheme.surfaceContainerHigh,
+                scheme.surfaceContainer,
+                scheme.surfaceContainerLowest,
+              ],
             ),
             border: Border.all(
-              color: const Color(0xFFE9D5B7).withValues(alpha: 0.65),
-              width: 1.4,
+              color: scheme.outline.withValues(alpha: 0.35),
+              width: 1.2,
             ),
           ),
           child: Stack(
@@ -1187,10 +1475,13 @@ class _WeeklyBossCard extends StatelessWidget {
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
-                    gradient: const RadialGradient(
+                    gradient: RadialGradient(
                       center: Alignment(0.8, -0.35),
                       radius: 0.95,
-                      colors: [Color(0x66FFC86A), Colors.transparent],
+                      colors: [
+                        scheme.primary.withValues(alpha: 0.12),
+                        Colors.transparent,
+                      ],
                     ),
                   ),
                 ),
@@ -1201,7 +1492,7 @@ class _WeeklyBossCard extends StatelessWidget {
                 child: Icon(
                   Icons.whatshot_rounded,
                   size: compact ? 118 : 132,
-                  color: const Color(0x77FF8E35),
+                  color: scheme.primary.withValues(alpha: 0.2),
                 ),
               ),
               Column(
@@ -1214,76 +1505,243 @@ class _WeeklyBossCard extends StatelessWidget {
                         height: compact ? 34 : 40,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFD63E2A), Color(0xFFAC1F11)],
-                          ),
+                          color: scheme.primaryContainer,
                         ),
                         child: Icon(
                           Icons.whatshot_rounded,
-                          color: Colors.white,
+                          color: scheme.onPrimaryContainer,
                           size: compact ? 19 : 22,
                         ),
                       ),
                       SizedBox(width: compact ? 8 : 10),
                       Expanded(
                         child: Text(
-                          'Weekly Boss • $daysLabel',
+                          'Encounter: Weekly Boss',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: const Color(0xFFF8EFE2),
+                            color: scheme.onSurface,
                             fontSize: compact ? 15 : 18,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
-                      TextButton(
-                        onPressed: onViewBattle,
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFFFDE5BF),
-                          textStyle: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: compact ? 12 : 14,
-                          ),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: compact ? 6 : 10,
-                            vertical: compact ? 4 : 6,
-                          ),
+                      Text(
+                        daysLabel,
+                        style: TextStyle(
+                          color: scheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                          fontSize: compact ? 12 : 13,
                         ),
-                        child: const Text('View Battle'),
                       ),
                     ],
                   ),
                   SizedBox(height: compact ? 10 : 14),
                   Text(
-                    'Boss HP: $hpPct%',
+                    'Status: $statusLabel',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: scheme.onSurface,
                       fontSize: compact ? 16 : 20,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  SizedBox(height: compact ? 10 : 12),
+                  SizedBox(height: compact ? 8 : 10),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(999),
                     child: LinearProgressIndicator(
                       value: hpProgress,
-                      minHeight: compact ? 11 : 14,
-                      backgroundColor: const Color(
-                        0xFFE7D9C4,
-                      ).withValues(alpha: 0.82),
-                      color: const Color(0xFFC8642A),
+                      minHeight: compact ? 10 : 12,
+                      backgroundColor: scheme.surface,
+                      color: scheme.primary,
                     ),
                   ),
+                  SizedBox(height: compact ? 8 : 10),
+                  Text(
+                    threatLine,
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                      fontSize: compact ? 12 : 13,
+                    ),
+                  ),
+                  SizedBox(height: compact ? 6 : 8),
+                  Text(
+                    'Actions taken today: $actionsTakenToday',
+                    style: TextStyle(
+                      color: scheme.onSurface,
+                      fontWeight: FontWeight.w700,
+                      fontSize: compact ? 13 : 14,
+                    ),
+                  ),
+                  Text(
+                    'Next action: $nextAction',
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                      fontSize: compact ? 12 : 13,
+                    ),
+                  ),
+                  SizedBox(height: compact ? 6 : 8),
+                  if (storedPower > 0)
+                    Text(
+                      'Stored power: $storedPower',
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                        fontSize: compact ? 12 : 13,
+                      ),
+                    ),
+                  if (scoutedToday)
+                    Text(
+                      'Weakness revealed: Morning quests hit harder',
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                        fontSize: compact ? 12 : 13,
+                      ),
+                    ),
+                  if (storedPower > 0 || scoutedToday)
+                    SizedBox(height: compact ? 6 : 8),
+                  if (todayIntent != null) ...[
+                    Row(
+                      children: [
+                        Icon(
+                          todayIntent!.icon,
+                          size: compact ? 14 : 16,
+                          color: scheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Today\'s Intent: ${todayIntent!.label}',
+                          style: TextStyle(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: compact ? 12 : 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (bonusLine != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        bonusLine,
+                        style: TextStyle(
+                          color: scheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                          fontSize: compact ? 12 : 13,
+                        ),
+                      ),
+                    ],
+                  ] else
+                    Text(
+                      'Today\'s Intent: Not selected',
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                        fontSize: compact ? 12 : 13,
+                      ),
+                    ),
+                  SizedBox(height: compact ? 6 : 8),
+                  Text(
+                    lastLine,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                      fontSize: compact ? 12 : 13,
+                    ),
+                  ),
+                  SizedBox(height: compact ? 10 : 12),
+                  Tooltip(
+                    message: canEngage ? '' : 'Choose a Daily Intent first.',
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: canEngage
+                          ? null
+                          : () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Choose a Daily Intent first.'),
+                                ),
+                              );
+                            },
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: canEngage ? onViewBattle : null,
+                          child: Text(ctaLabel),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (!canEngage) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Choose a Daily Intent first.',
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                        fontSize: compact ? 12 : 13,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ],
           ),
         );
+        return card;
       },
     );
+  }
+
+  String _statusFor(int hpPct) {
+    if (hpPct <= 0) return 'Defeated';
+    if (hpPct <= 19) return 'Near Defeat';
+    if (hpPct <= 49) return 'Staggering';
+    if (hpPct <= 79) return 'Wounded';
+    return 'Unharmed';
+  }
+
+  String _threatCopy(int actionsTakenToday, DateTime now) {
+    if (actionsTakenToday == 0 && now.hour >= 18) {
+      return 'Threat: Boss is gathering strength tonight';
+    }
+    if (actionsTakenToday == 0) {
+      return 'Threat: Rewards weaken if you skip today';
+    }
+    return 'Threat: Maintain pressure to keep advantage';
+  }
+
+  String _nextActionFor(DailyIntentType? intent) {
+    switch (intent) {
+      case DailyIntentType.power:
+        return 'Attack Boss';
+      case DailyIntentType.growth:
+        return 'Charge Power';
+      case DailyIntentType.safety:
+        return 'Guard';
+      case DailyIntentType.loot:
+        return 'Loot Roll';
+      case null:
+        return 'Choose Daily Intent';
+    }
+  }
+
+  String? _bonusCopy(DailyIntentType? intent) {
+    switch (intent) {
+      case DailyIntentType.power:
+        return 'Bonus: Attack focus increased';
+      case DailyIntentType.growth:
+        return 'Bonus: XP on resolve emphasized';
+      case DailyIntentType.safety:
+        return 'Bonus: Guard stance reinforced';
+      case DailyIntentType.loot:
+        return 'Bonus: Loot quality improved';
+      case null:
+        return null;
+    }
   }
 }
 
@@ -1525,7 +1983,7 @@ class _InlineStatsBarState extends State<_InlineStatsBar> {
             Color.lerp(const Color(0xFFB87735), scheme.tertiary, 0.5) ??
             scheme.tertiary;
         final secondaryColor = scheme.onSurfaceVariant.withValues(alpha: 0.68);
-        final bossHpColor =
+        final damageColor =
             Color.lerp(const Color(0xFF3DAF69), scheme.primary, 0.45) ??
             scheme.primary;
 
@@ -1555,13 +2013,13 @@ class _InlineStatsBarState extends State<_InlineStatsBar> {
               icon: Icons.task_alt_rounded,
               color: secondaryColor,
             ),
-          if (widget.bossDamageToday != 0)
+          if (widget.bossDamageToday > 0)
             _StatDescriptor(
-              id: 'boss_hp_lost',
-              label: 'Boss lost ${widget.bossDamageToday} HP',
-              tooltip: 'Boss HP removed by completed quests today.',
+              id: 'damage_dealt_today',
+              label: '${widget.bossDamageToday} HP dealt',
+              tooltip: 'Damage dealt to the boss from attack actions today.',
               icon: Icons.whatshot_rounded,
-              color: bossHpColor,
+              color: damageColor,
             ),
         ];
 

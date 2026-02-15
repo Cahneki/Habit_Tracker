@@ -13,6 +13,8 @@ part 'app_db.g.dart';
     Habits,
     HabitCompletions,
     UserSettings,
+    DailyIntents,
+    DailyFreeActions,
     EquippedCosmetics,
     BattleRewardsClaimed,
     XpEvents,
@@ -23,7 +25,7 @@ class AppDb extends _$AppDb {
   AppDb.test(super.executor);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -115,6 +117,28 @@ class AppDb extends _$AppDb {
         );
         await customStatement(
           'UPDATE user_settings SET onboarding_completed = 1 WHERE id = 1',
+        );
+      }
+      if (from < 15) {
+        await migrator.createTable(dailyIntents);
+      }
+      if (from < 16) {
+        await migrator.addColumn(
+          habitCompletions,
+          habitCompletions.actionType as GeneratedColumn,
+        );
+        await migrator.addColumn(
+          habitCompletions,
+          habitCompletions.lootSuccess as GeneratedColumn,
+        );
+      }
+      if (from < 17) {
+        await migrator.createTable(dailyFreeActions);
+      }
+      if (from < 18) {
+        await migrator.addColumn(
+          userSettings,
+          userSettings.profileName as GeneratedColumn,
         );
       }
     },

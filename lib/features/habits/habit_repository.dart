@@ -1,6 +1,7 @@
 // lib/features/habits/habit_repository.dart
 import 'package:drift/drift.dart';
 import '../../db/app_db.dart';
+import '../../data/quests/quest_completion_model.dart';
 import '../../shared/local_day.dart';
 
 class StreakStats {
@@ -73,7 +74,11 @@ class HabitRepository {
     return ids.join(',');
   }
 
-  String _rangeKey(DateTime start, DateTime endExclusive, List<String>? habitIds) {
+  String _rangeKey(
+    DateTime start,
+    DateTime endExclusive,
+    List<String>? habitIds,
+  ) {
     final base = '${localDay(start)}|${localDay(endExclusive)}';
     if (habitIds == null) return '$base|*';
     if (habitIds.isEmpty) return '$base|[]';
@@ -103,7 +108,9 @@ class HabitRepository {
     String timeOfDay = 'morning',
   }) async {
     final now = DateTime.now();
-    await db.into(db.habits).insert(
+    await db
+        .into(db.habits)
+        .insert(
           HabitsCompanion.insert(
             id: id,
             name: name,
@@ -140,19 +147,13 @@ class HabitRepository {
 
   Future<void> updateHabitIcon(String habitId, String iconId) async {
     await (db.update(db.habits)..where((h) => h.id.equals(habitId))).write(
-      HabitsCompanion(
-        iconId: Value(iconId),
-        iconPath: const Value(''),
-      ),
+      HabitsCompanion(iconId: Value(iconId), iconPath: const Value('')),
     );
   }
 
   Future<void> updateHabitCustomIcon(String habitId, String path) async {
     await (db.update(db.habits)..where((h) => h.id.equals(habitId))).write(
-      HabitsCompanion(
-        iconId: const Value('custom'),
-        iconPath: Value(path),
-      ),
+      HabitsCompanion(iconId: const Value('custom'), iconPath: Value(path)),
     );
   }
 
@@ -173,9 +174,9 @@ class HabitRepository {
 
   Future<void> deleteHabit(String habitId) async {
     await db.transaction(() async {
-      await (db.delete(db.habitCompletions)
-            ..where((c) => c.habitId.equals(habitId)))
-          .go();
+      await (db.delete(
+        db.habitCompletions,
+      )..where((c) => c.habitId.equals(habitId))).go();
       await (db.delete(db.habits)..where((h) => h.id.equals(habitId))).go();
     });
     _invalidateDerivedCaches();
@@ -184,18 +185,23 @@ class HabitRepository {
   Future<void> completeHabit(String habitId) async {
     final now = DateTime.now();
     final today = localDay(now);
-    final habit = await (db.select(db.habits)..where((h) => h.id.equals(habitId)))
-        .getSingleOrNull();
+    final habit = await (db.select(
+      db.habits,
+    )..where((h) => h.id.equals(habitId))).getSingleOrNull();
     if (habit == null) return;
     if (!_isScheduled(now, habit.scheduleMask)) return;
 
     await db.transaction(() async {
-      await db.into(db.habitCompletions).insert(
+      await db
+          .into(db.habitCompletions)
+          .insert(
             HabitCompletionsCompanion.insert(
               id: 'c-$habitId-$today', // deterministic => stable + idempotent
               habitId: habitId,
               completedAt: now.millisecondsSinceEpoch,
               localDay: today,
+              actionType: const Value('attack'),
+              lootSuccess: const Value.absent(),
             ),
             mode: InsertMode.insertOrIgnore,
           );
@@ -203,28 +209,76 @@ class HabitRepository {
     _invalidateDerivedCaches();
   }
 
+  Future<bool> completeHabitWithAction(
+    String habitId,
+    DateTime day,
+    QuestActionType actionType, {
+    bool? lootSuccess,
+  }) async {
+    final habit = await (db.select(
+      db.habits,
+    )..where((h) => h.id.equals(habitId))).getSingleOrNull();
+    if (habit == null) return false;
+    if (!_isScheduled(day, habit.scheduleMask)) return false;
+
+    final localDayStr = localDay(day);
+    final existing =
+        await (db.select(db.habitCompletions)
+              ..where(
+                (c) =>
+                    c.habitId.equals(habitId) & c.localDay.equals(localDayStr),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    if (existing != null) return false;
+
+    final completedAt = DateTime.now().millisecondsSinceEpoch;
+    await db
+        .into(db.habitCompletions)
+        .insert(
+          HabitCompletionsCompanion.insert(
+            id: 'c-$habitId-$localDayStr',
+            habitId: habitId,
+            completedAt: completedAt,
+            localDay: localDayStr,
+            actionType: Value(actionType.storageValue),
+            lootSuccess: Value(lootSuccess),
+          ),
+          mode: InsertMode.insertOrIgnore,
+        );
+    _invalidateDerivedCaches();
+    return true;
+  }
+
   Future<void> toggleCompletionForDay(String habitId, DateTime day) async {
-    final habit = await (db.select(db.habits)..where((h) => h.id.equals(habitId)))
-        .getSingleOrNull();
+    final habit = await (db.select(
+      db.habits,
+    )..where((h) => h.id.equals(habitId))).getSingleOrNull();
     if (habit == null) return;
     if (!_isScheduled(day, habit.scheduleMask)) return;
 
     final localDayStr = localDay(day);
-    final rows = await (db.select(db.habitCompletions)
-          ..where(
-            (c) => c.habitId.equals(habitId) & c.localDay.equals(localDayStr),
-          )
-          ..limit(1))
-        .get();
+    final rows =
+        await (db.select(db.habitCompletions)
+              ..where(
+                (c) =>
+                    c.habitId.equals(habitId) & c.localDay.equals(localDayStr),
+              )
+              ..limit(1))
+            .get();
 
     if (rows.isEmpty) {
       final completedAt = dayAtNoon(day);
-      await db.into(db.habitCompletions).insert(
+      await db
+          .into(db.habitCompletions)
+          .insert(
             HabitCompletionsCompanion.insert(
               id: 'c-$habitId-$localDayStr',
               habitId: habitId,
               completedAt: completedAt.millisecondsSinceEpoch,
               localDay: localDayStr,
+              actionType: const Value('attack'),
+              lootSuccess: const Value.absent(),
             ),
             mode: InsertMode.insertOrIgnore,
           );
@@ -232,10 +286,9 @@ class HabitRepository {
       return;
     }
 
-    await (db.delete(db.habitCompletions)
-          ..where(
-            (c) => c.habitId.equals(habitId) & c.localDay.equals(localDayStr),
-          ))
+    await (db.delete(db.habitCompletions)..where(
+          (c) => c.habitId.equals(habitId) & c.localDay.equals(localDayStr),
+        ))
         .go();
     _invalidateDerivedCaches();
   }
@@ -243,9 +296,9 @@ class HabitRepository {
   Future<List<HabitDayStatus>> getHabitsForDate(DateTime date) async {
     final localDayStr = localDay(date);
     final habits = await listActiveHabits();
-    final completions = await (db.select(db.habitCompletions)
-          ..where((c) => c.localDay.equals(localDayStr)))
-        .get();
+    final completions = await (db.select(
+      db.habitCompletions,
+    )..where((c) => c.localDay.equals(localDayStr))).get();
     final completedIds = completions.map((c) => c.habitId).toSet();
 
     return habits
@@ -259,15 +312,72 @@ class HabitRepository {
         .toList();
   }
 
+  Future<Map<String, QuestCompletionRecord>> getCompletionRecordsForDate(
+    DateTime date,
+  ) async {
+    final localDayStr = localDay(date);
+    final rows = await (db.select(
+      db.habitCompletions,
+    )..where((c) => c.localDay.equals(localDayStr))).get();
+
+    final map = <String, QuestCompletionRecord>{};
+    for (final row in rows) {
+      map[row.habitId] = QuestCompletionRecord(
+        habitId: row.habitId,
+        localDay: row.localDay,
+        completedAt: DateTime.fromMillisecondsSinceEpoch(row.completedAt),
+        actionType: questActionTypeFromStorage(row.actionType),
+        lootSuccess: row.lootSuccess,
+      );
+    }
+    return map;
+  }
+
+  Future<TodayActionEffects> getTodayActionEffects(DateTime date) async {
+    final records = await getCompletionRecordsForDate(date);
+    var pendingBossDamage = false;
+    var storedPower = 0;
+    var guardUsed = false;
+    var lootSuccess = false;
+
+    for (final record in records.values) {
+      switch (record.actionType) {
+        case QuestActionType.attack:
+          pendingBossDamage = true;
+          break;
+        case QuestActionType.charge:
+          storedPower += 1;
+          break;
+        case QuestActionType.guard:
+          guardUsed = true;
+          break;
+        case QuestActionType.loot:
+          if (record.lootSuccess == true) {
+            lootSuccess = true;
+          }
+          break;
+      }
+    }
+
+    return TodayActionEffects(
+      pendingBossDamage: pendingBossDamage,
+      storedPower: storedPower,
+      guardUsed: guardUsed,
+      lootSuccess: lootSuccess,
+    );
+  }
+
   Future<StreakStats> getStreakStats(String habitId) async {
-    final habit = await (db.select(db.habits)..where((h) => h.id.equals(habitId)))
-        .getSingleOrNull();
+    final habit = await (db.select(
+      db.habits,
+    )..where((h) => h.id.equals(habitId))).getSingleOrNull();
     final scheduleMask = habit?.scheduleMask;
 
-    final rows = await (db.select(db.habitCompletions)
-          ..where((c) => c.habitId.equals(habitId))
-          ..orderBy([(c) => OrderingTerm(expression: c.localDay)]))
-        .get();
+    final rows =
+        await (db.select(db.habitCompletions)
+              ..where((c) => c.habitId.equals(habitId))
+              ..orderBy([(c) => OrderingTerm(expression: c.localDay)]))
+            .get();
 
     final days = rows.map((r) => r.localDay).toList();
     return _computeStreakStatsFromDays(
@@ -313,9 +423,7 @@ class HabitRepository {
     var run = 0;
     final start = _parseLocalDay(days.first);
     final end = _parseLocalDay(days.last);
-    for (var d = start;
-        !d.isAfter(end);
-        d = d.add(const Duration(days: 1))) {
+    for (var d = start; !d.isAfter(end); d = d.add(const Duration(days: 1))) {
       if (!_isScheduled(d, scheduleMask)) continue;
       final key = localDay(d);
       if (completedSet.contains(key)) {
@@ -363,13 +471,14 @@ class HabitRepository {
     }
 
     final habitIds = habits.map((h) => h.id).toList();
-    final rows = await (db.select(db.habitCompletions)
-          ..where((c) => c.habitId.isIn(habitIds))
-          ..orderBy([
-            (c) => OrderingTerm(expression: c.habitId),
-            (c) => OrderingTerm(expression: c.localDay),
-          ]))
-        .get();
+    final rows =
+        await (db.select(db.habitCompletions)
+              ..where((c) => c.habitId.isIn(habitIds))
+              ..orderBy([
+                (c) => OrderingTerm(expression: c.habitId),
+                (c) => OrderingTerm(expression: c.localDay),
+              ]))
+            .get();
 
     final grouped = <String, List<String>>{};
     for (final row in rows) {
@@ -401,13 +510,16 @@ class HabitRepository {
     final startStr = localDay(start);
     final endStr = localDay(endExclusive);
 
-    final rows = await (db.select(db.habitCompletions)
-          ..where((c) =>
-              c.habitId.equals(habitId) &
-              c.localDay.isBiggerOrEqualValue(startStr) &
-              c.localDay.isSmallerThanValue(endStr))
-          ..orderBy([(c) => OrderingTerm(expression: c.localDay)]))
-        .get();
+    final rows =
+        await (db.select(db.habitCompletions)
+              ..where(
+                (c) =>
+                    c.habitId.equals(habitId) &
+                    c.localDay.isBiggerOrEqualValue(startStr) &
+                    c.localDay.isSmallerThanValue(endStr),
+              )
+              ..orderBy([(c) => OrderingTerm(expression: c.localDay)]))
+            .get();
 
     return rows.map((r) => r.localDay).toSet();
   }
@@ -425,9 +537,11 @@ class HabitRepository {
     final endStr = localDay(endExclusive);
 
     final query = db.select(db.habitCompletions)
-      ..where((c) =>
-          c.localDay.isBiggerOrEqualValue(startStr) &
-          c.localDay.isSmallerThanValue(endStr));
+      ..where(
+        (c) =>
+            c.localDay.isBiggerOrEqualValue(startStr) &
+            c.localDay.isSmallerThanValue(endStr),
+      );
     if (habitIds != null) {
       if (habitIds.isEmpty) return <String, Set<String>>{};
       query.where((c) => c.habitId.isIn(habitIds));
@@ -443,7 +557,10 @@ class HabitRepository {
     return result;
   }
 
-  Future<Set<String>> getCompletionDaysForMonth(String habitId, DateTime month) async {
+  Future<Set<String>> getCompletionDaysForMonth(
+    String habitId,
+    DateTime month,
+  ) async {
     final start = DateTime(month.year, month.month, 1);
     final end = DateTime(month.year, month.month + 1, 1);
 
@@ -486,12 +603,12 @@ class HabitRepository {
     if (habits.isEmpty) return 0;
 
     final habitById = {for (final h in habits) h.id: h};
-    final rows = await (db.select(db.habitCompletions)
-          ..orderBy([
-            (c) => OrderingTerm(expression: c.habitId),
-            (c) => OrderingTerm(expression: c.localDay),
-          ]))
-        .get();
+    final rows =
+        await (db.select(db.habitCompletions)..orderBy([
+              (c) => OrderingTerm(expression: c.habitId),
+              (c) => OrderingTerm(expression: c.localDay),
+            ]))
+            .get();
 
     final grouped = <String, List<String>>{};
     for (final row in rows) {
@@ -512,9 +629,7 @@ class HabitRepository {
       final end = _parseLocalDay(days.last);
       var streak = 0;
 
-      for (var d = start;
-          !d.isAfter(end);
-          d = d.add(const Duration(days: 1))) {
+      for (var d = start; !d.isAfter(end); d = d.add(const Duration(days: 1))) {
         if (!_isScheduled(d, scheduleMask)) continue;
         final key = localDay(d);
         if (completedSet.contains(key)) {
